@@ -30,7 +30,11 @@ export interface PluginPackageRecord {
 export interface SolutionRecord {
   id: string;
   uniqueName: string;
+  version: string;
   isManaged: boolean;
+  publisher: string;
+  createdOn: string;
+  modifiedOn: string;
 }
 
 export interface PluginAssemblyRecord {
@@ -65,8 +69,8 @@ function createSolutionsQuery(componentTypes: PluginComponentTypes): string {
     .join(",");
   const componentFilter = `(Microsoft.Dynamics.CRM.In(PropertyName=%27componenttype%27,PropertyValues=[${componentTypeValues}]))`;
 
-  return "solutions?$select=solutionid,ismanaged,uniquename" +
-    `&$expand=solution_solutioncomponent($select=solutioncomponentid;${"$filter=" + componentFilter})` +
+  return "solutions?$select=solutionid,ismanaged,uniquename,version,createdon,modifiedon" +
+    `&$expand=publisherid($select=friendlyname,uniquename),solution_solutioncomponent($select=solutioncomponentid;${"$filter=" + componentFilter})` +
     `&$filter=(solution_solutioncomponent/any(o1:(o1/Microsoft.Dynamics.CRM.In(PropertyName=%27componenttype%27,PropertyValues=[${componentTypeValues}]))))`;
 }
 
@@ -169,7 +173,15 @@ export async function listPluginSolutions(
     return {
       id,
       uniqueName,
+      version: asString(record.version) ?? "",
       isManaged: record.ismanaged === true,
+      publisher: typeof record.publisherid === "object" && record.publisherid !== null
+        ? asString((record.publisherid as Record<string, unknown>).friendlyname)
+          ?? asString((record.publisherid as Record<string, unknown>).uniquename)
+          ?? ""
+        : "",
+      createdOn: asString(record.createdon) ?? "",
+      modifiedOn: asString(record.modifiedon) ?? "",
     };
   });
 }

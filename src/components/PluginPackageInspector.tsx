@@ -32,7 +32,7 @@ import {
   Text,
 } from "@fluentui/react-components";
 import useStyles from "../styles/PluginPackageInspector";
-import { ArrowSync24Regular, Certificate24Regular, Copy24Regular, DocumentSearch24Regular, FolderOpen24Regular, Save24Regular } from "@fluentui/react-icons";
+import { ArrowSortDown24Regular, ArrowSortUp24Regular, ArrowSync24Regular, Certificate24Regular, CheckmarkCircle24Regular, Copy24Regular, Dismiss24Regular, DocumentSearch24Regular, FolderOpen24Regular, Save24Regular, Settings24Regular } from "@fluentui/react-icons";
 import { Buffer } from "buffer";
 import { CertificateDetailsPopup } from "./CertificateDetailsPopup";
 import { getCommonName } from "../utils/distinguishedName";
@@ -101,9 +101,21 @@ function getCertificateIdentity(distinguishedName: string): string {
 }
 
 type InspectedComponentType = "assembly" | "package";
+type SolutionSortKey = "uniqueName" | "version" | "isManaged" | "publisher" | "createdOn" | "modifiedOn";
 
-function getSignedLabel(componentType: InspectedComponentType): string {
-  return componentType === "assembly" ? "Signed Plugin Assembly" : "Signed Plugin Package";
+function getSignedLabel(componentType: InspectedComponentType, isSelfSigned: boolean): string {
+  const certificateType = isSelfSigned ? "Self-Signed" : "Issuer-Signed";
+  const componentTypeLabel = componentType === "assembly" ? "Plugin Assembly" : "Plugin Package";
+  return `${certificateType} ${componentTypeLabel}`;
+}
+
+function formatSolutionDate(value: string): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
 }
 
 function createNameMatcher(filter: string): (name: string) => boolean {
@@ -125,6 +137,11 @@ export const PluginPackageInspector: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [nameFilter, setNameFilter] = useState("");
   const [solutions, setSolutions] = useState<SolutionRecord[]>([]);
+  const [isSolutionPickerOpen, setIsSolutionPickerOpen] = useState(false);
+  const [solutionFilter, setSolutionFilter] = useState("");
+  const [solutionSortKey, setSolutionSortKey] = useState<SolutionSortKey>("uniqueName");
+  const [solutionSortDescending, setSolutionSortDescending] = useState(false);
+  const [pendingSolutionId, setPendingSolutionId] = useState("");
   const [componentTypes, setComponentTypes] = useState<PluginComponentTypes | null>(null);
   const [selectedSolutionId, setSelectedSolutionId] = useState("");
   const [solutionComponentIds, setSolutionComponentIds] = useState<{
@@ -138,9 +155,12 @@ export const PluginPackageInspector: React.FC = () => {
   const [tenantId, setTenantId] = useState("");
   const [environmentId, setEnvironmentId] = useState("");
   const [identityResult, setIdentityResult] = useState<ManagedIdentitySubjectResult | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInspectingPackageId, setIsInspectingPackageId] = useState<string | null>(null);
   const [isExportingPackageId, setIsExportingPackageId] = useState<string | null>(null);
   const [inspectedPackageName, setInspectedPackageName] = useState<string | null>(null);
+  const [inspectedComponentId, setInspectedComponentId] = useState<string | null>(null);
+  const [hoveredInspectId, setHoveredInspectId] = useState<string | null>(null);
   const [inspectedComponentType, setInspectedComponentType] = useState<InspectedComponentType>("package");
   const [inspection, setInspection] = useState<NugetSignatureInspection | null>(null);
   const [isCertificateDetailsOpen, setIsCertificateDetailsOpen] = useState(false);
@@ -293,6 +313,11 @@ export const PluginPackageInspector: React.FC = () => {
 
     setIsLoading(true);
     setError(null);
+    setInspection(null);
+    setInspectedComponentId(null);
+    setInspectedPackageName(null);
+    setIsCertificateDetailsOpen(false);
+    setIdentityResult(null);
 
     try {
       const [packageRecords, assemblyRecords] = await Promise.all([
@@ -379,6 +404,7 @@ export const PluginPackageInspector: React.FC = () => {
     setIsInspectingPackageId(packageRecord.id);
     setError(null);
     setInspection(null);
+    setInspectedComponentId(null);
     setInspectedPackageName(packageRecord.name);
     setInspectedComponentType("package");
     setIsCertificateDetailsOpen(false);
@@ -387,6 +413,7 @@ export const PluginPackageInspector: React.FC = () => {
       const packageBytes = await getPluginPackageContent(window.dataverseAPI, packageRecord.id);
       const result = await inspectNugetSignature(packageBytes);
       setInspection(result);
+      setInspectedComponentId(packageRecord.id);
       addLog(
         `${packageRecord.name} is ${result.signatureStatus === "signed" ? "signed" : "unsigned"}.`,
         result.signatureStatus === "signed" ? "success" : "warning",
@@ -408,6 +435,7 @@ export const PluginPackageInspector: React.FC = () => {
     setIsInspectingPackageId(assemblyRecord.id);
     setError(null);
     setInspection(null);
+    setInspectedComponentId(null);
     setInspectedPackageName(assemblyRecord.name);
     setInspectedComponentType("assembly");
     setIsCertificateDetailsOpen(false);
@@ -416,6 +444,7 @@ export const PluginPackageInspector: React.FC = () => {
       const assemblyBytes = await getPluginAssemblyContent(window.dataverseAPI, assemblyRecord.id);
       const result = await inspectPluginAssemblySignature(assemblyBytes);
       setInspection(result);
+      setInspectedComponentId(assemblyRecord.id);
       addLog(
         `${assemblyRecord.name} is ${result.signatureStatus === "signed" ? "signed" : "unsigned"}.`,
         result.signatureStatus === "signed" ? "success" : "warning",
@@ -433,6 +462,7 @@ export const PluginPackageInspector: React.FC = () => {
     setIsInspectingPackageId("local");
     setError(null);
     setInspection(null);
+    setInspectedComponentId(null);
     setInspectedPackageName(null);
     setInspectedComponentType("package");
     setIsCertificateDetailsOpen(false);
@@ -440,9 +470,9 @@ export const PluginPackageInspector: React.FC = () => {
     try {
       const filePath = await window.toolboxAPI.fileSystem.selectPath({
         type: "file",
-        title: "Select a NuGet plugin package",
-        buttonLabel: "Inspect package",
-        filters: [{ name: "NuGet package", extensions: ["nupkg"] }],
+        title: "Select a plugin package or assembly",
+        buttonLabel: "Inspect file",
+        filters: [{ name: "Plugin package or assembly", extensions: ["nupkg", "dll"] }],
       });
 
       if (!filePath) {
@@ -451,17 +481,22 @@ export const PluginPackageInspector: React.FC = () => {
       }
 
       const packageBytes = await window.toolboxAPI.fileSystem.readBinary(filePath);
-      const result = await inspectNugetSignature(new Uint8Array(packageBytes));
       const packageName = filePath.split(/[\\/]/).pop() ?? filePath;
+      const isAssembly = packageName.toLowerCase().endsWith(".dll");
+      const result = isAssembly
+        ? await inspectPluginAssemblySignature(new Uint8Array(packageBytes))
+        : await inspectNugetSignature(new Uint8Array(packageBytes));
 
       setInspection(result);
+      setInspectedComponentId("local");
       setInspectedPackageName(packageName);
+      setInspectedComponentType(isAssembly ? "assembly" : "package");
       addLog(
         `${packageName} is ${result.signatureStatus === "signed" ? "signed" : "unsigned"}.`,
         result.signatureStatus === "signed" ? "success" : "warning",
       );
     } catch (inspectionError) {
-      const message = `Unable to inspect local package: ${(inspectionError as Error).message}`;
+      const message = `Unable to inspect local file: ${(inspectionError as Error).message}`;
       setError(message);
       addLog(message, "error");
     } finally {
@@ -486,6 +521,43 @@ export const PluginPackageInspector: React.FC = () => {
   const solutionAssemblies = selectedSolutionId && solutionComponentIds
     ? assemblies.filter((assemblyRecord) => solutionComponentIds.assemblies.has(assemblyRecord.id))
     : assemblies;
+  const normalizedSolutionFilter = solutionFilter.trim().toLocaleLowerCase();
+  const visibleSolutions = solutions
+    .filter((solution) => !normalizedSolutionFilter || [
+      solution.uniqueName,
+      solution.version,
+      solution.isManaged ? "managed" : "unmanaged",
+      solution.publisher,
+      formatSolutionDate(solution.createdOn),
+      formatSolutionDate(solution.modifiedOn),
+    ]
+      .some((value) => value.toLocaleLowerCase().includes(normalizedSolutionFilter)))
+    .slice()
+    .sort((left, right) => {
+      const leftValue = solutionSortKey === "isManaged"
+        ? (left.isManaged ? "managed" : "unmanaged")
+        : left[solutionSortKey];
+      const rightValue = solutionSortKey === "isManaged"
+        ? (right.isManaged ? "managed" : "unmanaged")
+        : right[solutionSortKey];
+      const comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });
+      return solutionSortDescending ? -comparison : comparison;
+    });
+  const openSolutionPicker = () => {
+    setPendingSolutionId(selectedSolutionId);
+    setIsSolutionPickerOpen(true);
+  };
+  const sortSolutionsBy = (sortKey: SolutionSortKey) => {
+    if (solutionSortKey === sortKey) {
+      setSolutionSortDescending((descending) => !descending);
+    } else {
+      setSolutionSortKey(sortKey);
+      setSolutionSortDescending(false);
+    }
+  };
+  const sortIcon = (sortKey: SolutionSortKey) => solutionSortKey === sortKey
+    ? (solutionSortDescending ? <ArrowSortDown24Regular /> : <ArrowSortUp24Regular />)
+    : null;
   const nameMatcher = createNameMatcher(nameFilter);
   const visiblePackages = solutionPackages.filter((packageRecord) => nameMatcher(packageRecord.name));
   const visibleAssemblies = solutionAssemblies.filter((assemblyRecord) => nameMatcher(assemblyRecord.name));
@@ -521,26 +593,22 @@ export const PluginPackageInspector: React.FC = () => {
           </Text>
           <div className={styles.commandGroup}>
             {solutions.length > 0 && (
-              <select
-                aria-label="Solution filter"
-                className={styles.toolbarSelect}
-                value={selectedSolutionId}
-                onChange={(event) => setSelectedSolutionId(event.target.value)}
-              >
-                <option value="">All solutions</option>
-                {solutions.map((solution) => (
-                  <option key={solution.id} value={solution.id}>
-                    {solution.uniqueName}{solution.isManaged ? " (managed)" : ""}
-                  </option>
-                ))}
-              </select>
+              <Button onClick={openSolutionPicker}>
+                {selectedSolutionId
+                  ? solutions.find((solution) => solution.id === selectedSolutionId)?.uniqueName ?? "Select solution"
+                  : "All Solutions"}
+              </Button>
             )}
             <Button
               icon={<FolderOpen24Regular />}
+              appearance={inspectedComponentId === "local" && inspection ? "primary" : "secondary"}
               onClick={inspectLocalPackage}
               disabled={isInspectingPackageId !== null || isExportingPackageId !== null}
             >
               Inspect local package
+            </Button>
+            <Button icon={<Settings24Regular />} onClick={() => setIsSettingsOpen(true)}>
+              Managed identity settings
             </Button>
             <Button
               appearance="primary"
@@ -610,7 +678,7 @@ export const PluginPackageInspector: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {pagedPackages.map((packageRecord) => (
-                  <TableRow key={packageRecord.id}>
+                  <TableRow key={packageRecord.id} className={inspectedComponentId === packageRecord.id && inspection ? styles.inspectedRow : undefined}>
                     <TableCell className={styles.nameColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.name} /></TableCell>
                     <TableCell className={styles.uniqueNameColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.uniqueName || "-"} /></TableCell>
                     <TableCell className={styles.versionColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.version || "-"} /></TableCell>
@@ -624,8 +692,13 @@ export const PluginPackageInspector: React.FC = () => {
                     <TableCell className={styles.actionColumn}>
                       <Button
                         appearance="subtle"
-                        icon={<DocumentSearch24Regular />}
-                        aria-label={`Inspect ${packageRecord.name}`}
+                        icon={inspectedComponentId === packageRecord.id && inspection && hoveredInspectId !== packageRecord.id
+                          ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} />
+                          : <DocumentSearch24Regular />}
+                        aria-label={inspectedComponentId === packageRecord.id && inspection ? `Inspect ${packageRecord.name} again` : `Inspect ${packageRecord.name}`}
+                        title={inspectedComponentId === packageRecord.id && inspection ? "Inspect again" : `Inspect ${packageRecord.name}`}
+                        onMouseEnter={() => setHoveredInspectId(packageRecord.id)}
+                        onMouseLeave={() => setHoveredInspectId(null)}
                         onClick={() => inspectPackage(packageRecord)}
                         disabled={isInspectingPackageId !== null || isExportingPackageId !== null}
                       />
@@ -660,7 +733,7 @@ export const PluginPackageInspector: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {pagedAssemblies.map((assemblyRecord) => (
-                  <TableRow key={assemblyRecord.id}>
+                  <TableRow key={assemblyRecord.id} className={inspectedComponentId === assemblyRecord.id && inspection ? styles.inspectedRow : undefined}>
                     <TableCell className={styles.nameColumn}><EllipsisText className={styles.ellipsis} value={assemblyRecord.name} /></TableCell>
                     <TableCell className={styles.versionColumn}><EllipsisText className={styles.ellipsis} value={assemblyRecord.version || "-"} /></TableCell>
                     <TableCell className={styles.managedColumn}>
@@ -671,8 +744,13 @@ export const PluginPackageInspector: React.FC = () => {
                     <TableCell className={styles.actionColumn}>
                       <Button
                         appearance="subtle"
-                        icon={<DocumentSearch24Regular />}
-                        aria-label={`Inspect ${assemblyRecord.name}`}
+                        icon={inspectedComponentId === assemblyRecord.id && inspection && hoveredInspectId !== assemblyRecord.id
+                          ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} />
+                          : <DocumentSearch24Regular />}
+                        aria-label={inspectedComponentId === assemblyRecord.id && inspection ? `Inspect ${assemblyRecord.name} again` : `Inspect ${assemblyRecord.name}`}
+                        title={inspectedComponentId === assemblyRecord.id && inspection ? "Inspect again" : `Inspect ${assemblyRecord.name}`}
+                        onMouseEnter={() => setHoveredInspectId(assemblyRecord.id)}
+                        onMouseLeave={() => setHoveredInspectId(null)}
                         onClick={() => inspectAssembly(assemblyRecord)}
                         disabled={isInspectingPackageId !== null || isExportingPackageId !== null}
                       />
@@ -712,66 +790,176 @@ export const PluginPackageInspector: React.FC = () => {
           <div className={styles.inspectionSummary}>
             <Text weight="semibold">{inspectedPackageName}</Text>
             {inspection.signatureStatus === "unsigned" ? (
-              <Text>This package does not contain a NuGet `.signature.p7s` entry.</Text>
+              <Text>
+                {inspectedComponentType === "assembly"
+                  ? "This assembly is not signed."
+                  : "This package does not contain a NuGet `.signature.p7s` entry."}
+              </Text>
             ) : (
               <>
                 <div className={styles.inspectionGrid}>
                   <Text className={styles.inspectionLabel}>Signature</Text>
-                  <Badge appearance="filled" color="success">{getSignedLabel(inspectedComponentType)}</Badge>
-                  <Text className={styles.inspectionLabel}>Certificate</Text>
-                  <Text>{inspection.certificate.isSelfSigned ? "Self-signed" : "Issuer-signed"}</Text>
+                  <Badge appearance="filled" color="success">{getSignedLabel(inspectedComponentType, inspection.certificate.isSelfSigned)}</Badge>
                   <Text className={styles.inspectionLabel}>Signer</Text>
                   <Text className={styles.inspectionValue} title={inspection.certificate.subjectDistinguishedName}>
                     {getCertificateIdentity(inspection.certificate.subjectDistinguishedName)}
-                  </Text>
-                  <Text className={styles.inspectionLabel}>Issuer</Text>
-                  <Text className={styles.inspectionValue} title={inspection.certificate.issuerDistinguishedName}>
-                    {getCertificateIdentity(inspection.certificate.issuerDistinguishedName)}
                   </Text>
                 </div>
                 <Button icon={<Certificate24Regular />} onClick={() => setIsCertificateDetailsOpen(true)}>
                   View certificate details
                 </Button>
+                {identityResult && (
+                  <div className={styles.identifierGrid}>
+                    <Text className={styles.inspectionLabel}>Issuer</Text>
+                    <Text className={styles.identifierValue} title={`${cloudConfigurations[cloud].issuerUrl}/${tenantId.trim()}/v2.0`}>
+                      {cloudConfigurations[cloud].issuerUrl}/{tenantId.trim()}/v2.0
+                    </Text>
+                    <Button appearance="subtle" icon={<Copy24Regular />} aria-label="Copy issuer" onClick={() => copyIdentifier("Issuer", `${cloudConfigurations[cloud].issuerUrl}/${tenantId.trim()}/v2.0`)} />
+                    <Text className={styles.inspectionLabel}>Subject identifier</Text>
+                    <Text className={styles.identifierValue} title={identityResult.subjectIdentifier}>{identityResult.subjectIdentifier}</Text>
+                    <Button appearance="subtle" icon={<Copy24Regular />} aria-label="Copy subject identifier" onClick={() => copyIdentifier("Subject identifier", identityResult.subjectIdentifier)} />
+                  </div>
+                )}
               </>
             )}
           </div>
         )}
 
-        <div className={styles.configuration}>
-          <Text weight="semibold">Managed identity subject settings</Text>
-          <div className={styles.inputGroup}>
-            <Label htmlFor="tenant-id">Tenant ID</Label>
-            <Input id="tenant-id" value={tenantId} onChange={(_event, data) => setTenantId(data.value)} placeholder="00000000-0000-0000-0000-000000000000" />
-          </div>
-          <div className={styles.inputGroup}>
-            <Label htmlFor="environment-id">Organization ID</Label>
-            <Input id="environment-id" value={environmentId} onChange={(_event, data) => setEnvironmentId(data.value)} placeholder="Environment GUID" />
-          </div>
-          <Label htmlFor="cloud-environment">Cloud</Label>
-          <select
-            id="cloud-environment"
-            className={styles.cloudSelect}
-            value={cloud}
-            onChange={(event) => setCloud(event.target.value as ManagedIdentityCloud)}
-          >
-            {Object.entries(cloudConfigurations).map(([value, configuration]) => (
-              <option key={value} value={value}>{configuration.label}</option>
-            ))}
-          </select>
-          {inspection?.signatureStatus === "signed" && identityResult && (
-            <div className={styles.identifierGrid}>
-              <Text className={styles.inspectionLabel}>Issuer</Text>
-              <Text className={styles.identifierValue} title={`${cloudConfigurations[cloud].issuerUrl}/${tenantId.trim()}/v2.0`}>
-                {cloudConfigurations[cloud].issuerUrl}/{tenantId.trim()}/v2.0
-              </Text>
-              <Button appearance="subtle" icon={<Copy24Regular />} aria-label="Copy issuer" onClick={() => copyIdentifier("Issuer", `${cloudConfigurations[cloud].issuerUrl}/${tenantId.trim()}/v2.0`)} />
-              <Text className={styles.inspectionLabel}>Subject identifier</Text>
-              <Text className={styles.identifierValue} title={identityResult.subjectIdentifier}>{identityResult.subjectIdentifier}</Text>
-              <Button appearance="subtle" icon={<Copy24Regular />} aria-label="Copy subject identifier" onClick={() => copyIdentifier("Subject identifier", identityResult.subjectIdentifier)} />
-            </div>
-          )}
-        </div>
       </div>
+      {isSolutionPickerOpen && (
+        <div className={styles.settingsOverlay} role="presentation" onMouseDown={() => setIsSolutionPickerOpen(false)}>
+          <section
+            className={styles.solutionPickerPopup}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="solution-picker-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className={styles.settingsHeader}>
+              <Text id="solution-picker-title" weight="semibold" size={400}>Select solution</Text>
+              <Button appearance="subtle" icon={<Dismiss24Regular />} aria-label="Close solution picker" onClick={() => setIsSolutionPickerOpen(false)} />
+            </div>
+            <div className={styles.solutionPickerControls}>
+              <Button
+                appearance={pendingSolutionId ? "secondary" : "primary"}
+                onClick={() => {
+                  setSelectedSolutionId(pendingSolutionId);
+                  setIsSolutionPickerOpen(false);
+                }}
+              >
+                {pendingSolutionId
+                  ? `Select ${solutions.find((solution) => solution.id === pendingSolutionId)?.uniqueName ?? "solution"}`
+                  : "Select All Solutions"}
+              </Button>
+              <Input
+                className={styles.solutionFilterInput}
+                aria-label="Filter solutions"
+                placeholder="Filter solutions"
+                value={solutionFilter}
+                onChange={(_event, data) => setSolutionFilter(data.value)}
+              />
+            </div>
+            <div className={styles.solutionTableContainer}>
+              <Table className={styles.solutionTable} size="small" aria-label="Solutions">
+                <TableHeader className={styles.solutionTableHeader}>
+                  <TableRow>
+                    <TableHeaderCell className={styles.solutionCheckboxColumn}></TableHeaderCell>
+                    {(["uniqueName", "version", "isManaged", "publisher", "createdOn", "modifiedOn"] as SolutionSortKey[]).map((sortKey) => {
+                      const labels: Record<SolutionSortKey, string> = {
+                        uniqueName: "Unique name",
+                        version: "Version",
+                        isManaged: "Solution type",
+                        publisher: "Publisher",
+                        createdOn: "Created on",
+                        modifiedOn: "Modified on",
+                      };
+                      return (
+                        <TableHeaderCell key={sortKey}>
+                          <Button className={styles.solutionHeaderButton} appearance="subtle" onClick={() => sortSolutionsBy(sortKey)}>
+                            {labels[sortKey]} {sortIcon(sortKey)}
+                          </Button>
+                        </TableHeaderCell>
+                      );
+                    })}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleSolutions.map((solution) => (
+                    <TableRow
+                      key={solution.id}
+                      className={styles.selectableSolutionRow}
+                      tabIndex={0}
+                      onClick={() => setPendingSolutionId(solution.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setPendingSolutionId(solution.id);
+                        }
+                      }}
+                    >
+                      <TableCell className={styles.solutionCheckboxColumn}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${solution.uniqueName}`}
+                          checked={pendingSolutionId === solution.id}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => setPendingSolutionId(pendingSolutionId === solution.id ? "" : solution.id)}
+                        />
+                      </TableCell>
+                      <TableCell>{solution.uniqueName}</TableCell>
+                      <TableCell>{solution.version}</TableCell>
+                      <TableCell>{solution.isManaged ? "Managed" : "Unmanaged"}</TableCell>
+                      <TableCell>{solution.publisher}</TableCell>
+                      <TableCell>{formatSolutionDate(solution.createdOn)}</TableCell>
+                      <TableCell>{formatSolutionDate(solution.modifiedOn)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {visibleSolutions.length === 0 && <Text className={styles.muted}>No solutions match the filter.</Text>}
+            </div>
+          </section>
+        </div>
+      )}
+      {isSettingsOpen && (
+        <div className={styles.settingsOverlay} role="presentation" onMouseDown={() => setIsSettingsOpen(false)}>
+          <section
+            className={styles.settingsPopup}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="managed-identity-settings-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className={styles.settingsHeader}>
+              <Text id="managed-identity-settings-title" weight="semibold" size={400}>Managed identity subject settings</Text>
+              <Button appearance="subtle" icon={<Dismiss24Regular />} aria-label="Close managed identity settings" onClick={() => setIsSettingsOpen(false)} />
+            </div>
+            <div className={styles.settingsBody}>
+              <div className={styles.inputGroup}>
+                <Label htmlFor="tenant-id">Tenant ID</Label>
+                <Input id="tenant-id" value={tenantId} onChange={(_event, data) => setTenantId(data.value)} placeholder="00000000-0000-0000-0000-000000000000" />
+              </div>
+              <div className={styles.inputGroup}>
+                <Label htmlFor="environment-id">Organization ID</Label>
+                <Input id="environment-id" value={environmentId} onChange={(_event, data) => setEnvironmentId(data.value)} placeholder="Environment GUID" />
+              </div>
+              <div className={styles.inputGroup}>
+                <Label htmlFor="cloud-environment">Cloud</Label>
+                <select
+                  id="cloud-environment"
+                  className={styles.cloudSelect}
+                  value={cloud}
+                  onChange={(event) => setCloud(event.target.value as ManagedIdentityCloud)}
+                >
+                  {Object.entries(cloudConfigurations).map(([value, configuration]) => (
+                    <option key={value} value={value}>{configuration.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
       {isCertificateDetailsOpen && inspection?.signatureStatus === "signed" && (
         <CertificateDetailsPopup
           certificate={inspection.certificate}

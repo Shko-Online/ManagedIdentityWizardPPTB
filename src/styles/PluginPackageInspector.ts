@@ -118,6 +118,13 @@ const useStyles = makeStyles({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+  inspectedIndicator: {
+    flexShrink: 0,
+    color: tokens.colorPaletteGreenForeground1,
+  },
+  inspectedRow: {
+    backgroundColor: tokens.colorNeutralBackground2,
+  },
   muted: {
     color: tokens.colorNeutralForeground3,
   },
@@ -130,6 +137,91 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     gap: tokens.spacingVerticalS,
+  },
+  settingsOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: tokens.spacingHorizontalL,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+  },
+  settingsPopup: {
+    width: "min(560px, 100%)",
+    maxHeight: "min(720px, 90vh)",
+    overflowY: "auto",
+    backgroundColor: tokens.colorNeutralBackground1,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusMedium,
+    boxShadow: tokens.shadow64,
+  },
+  solutionPickerPopup: {
+    width: "min(1200px, 100%)",
+    maxHeight: "min(760px, 90vh)",
+    overflow: "hidden",
+    backgroundColor: tokens.colorNeutralBackground1,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusMedium,
+    boxShadow: tokens.shadow64,
+    display: "flex",
+    flexDirection: "column",
+  },
+  settingsHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: tokens.spacingHorizontalM,
+    padding: tokens.spacingVerticalM,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
+  settingsBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalM,
+    padding: tokens.spacingVerticalM,
+  },
+  solutionPickerControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalS,
+    flexWrap: "wrap",
+    padding: tokens.spacingVerticalM,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
+  solutionFilterInput: {
+    width: "280px",
+    marginLeft: "auto",
+  },
+  solutionTableContainer: {
+    overflow: "auto",
+    padding: tokens.spacingVerticalM,
+  },
+  solutionTable: {
+    minWidth: "980px",
+  },
+  solutionTableHeader: {
+    borderBottom: `3px solid ${tokens.colorNeutralStroke1}`,
+  },
+  solutionHeaderButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  solutionCheckboxColumn: {
+    width: "44px",
+  },
+  selectableSolutionRow: {
+    cursor: "pointer",
+    "&:hover": {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+    "&:focus-visible": {
+      outline: `2px solid ${tokens.colorBrandStroke1}`,
+      outlineOffset: "-2px",
+    },
   },
   inspectionSummary: {
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
@@ -155,7 +247,6 @@ const useStyles = makeStyles({
     whiteSpace: "nowrap",
   },
   cloudSelect: {
-    maxWidth: "360px",
     width: "100%",
     minHeight: "32px",
     paddingLeft: tokens.spacingHorizontalS,
@@ -177,7 +268,7 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     gap: tokens.spacingVerticalXS,
-    maxWidth: "460px",
+    width: "100%",
   },
   identifierGrid: {
     display: "grid",
