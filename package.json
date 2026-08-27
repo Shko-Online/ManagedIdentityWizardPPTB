@@ -1,0 +1,62 @@
+{
+  "name": "@shko.online/pptb-miw",
+  "version": "0.1.0",
+  "displayName": "Managed Identity Wizard",
+  "description": "A PPTB tool to simplify configuring Dataverse Managed Identity for Plugin Assemblies or Plugin Packages.",
+  "main": "index.html",
+  "author": "Shko Online <sales@shko.online>",
+  "contributors": [
+    {
+      "name": "Betim Beja",
+      "url": "https://github.com/BetimBeja"
+    },
+    {
+      "name": "Shko Online",
+      "url": "https://github.com/Shko-Online"
+    }
+  ],
+  "configurations": {
+    "readmeUrl": "https://raw.githubusercontent.com/Shko-Online/ManagedIdentityWizardPPTB/refs/heads/main/README.md",
+    "repository": "https://github.com/Shko-Online/ManagedIdentityWizardPPTB",
+    "website": "https://shko.online"
+  },
+  "icon": "ShkoOnline.svg",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite",
+    "watch": "vite build --watch",
+    "dev-watch": "vite build --mode development --watch",
+    "preview": "vite preview",
+    "finalize-package": "npm shrinkwrap",
+    "validate": "pptb-validate",
+    "version-stable": "npm version patch --no-git-tag-version",
+    "publish-package": "npm run build && npm run version-stable && npm publish --access public"
+  },
+  "dependencies": {
+    "@fluentui/react-components": "^9.72.7",
+    "@fluentui/react-icons": "^2.0.314",
+    "@zip.js/zip.js": "^2.8.60",
+    "asn1js": "^3.0.10",
+    "buffer": "^6.0.3",
+    "jkurwa": "^1.22.7",
+    "pkijs": "^3.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@pptb/types": "^1.2.5",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^7.1.11"
+  },
+  "files": [
+    "dist",
+    "npm-shrinkwrap.json"
+  ]
+}
