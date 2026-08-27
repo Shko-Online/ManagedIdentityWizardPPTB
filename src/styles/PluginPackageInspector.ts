@@ -41,8 +41,48 @@ const useStyles = makeStyles({
     marginLeft: "auto",
     flexWrap: "wrap",
   },
+  toolbarSelect: {
+    width: "240px",
+    minHeight: "32px",
+    paddingLeft: tokens.spacingHorizontalS,
+    paddingRight: tokens.spacingHorizontalS,
+    color: tokens.colorNeutralForeground1,
+    backgroundColor: tokens.colorNeutralBackground1,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusSmall,
+    fontFamily: tokens.fontFamilyBase,
+    fontSize: tokens.fontSizeBase300,
+  },
+  tabs: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: tokens.spacingHorizontalXS,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
+  tabButtons: {
+    display: "flex",
+    gap: tokens.spacingHorizontalXS,
+  },
+  nameFilter: {
+    width: "280px",
+    maxWidth: "45%",
+  },
+  activeTab: {
+    borderBottomColor: tokens.colorBrandStroke1,
+  },
+  pagination: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: tokens.spacingHorizontalS,
+  },
   tableContainer: {
     overflowX: "auto",
+  },
+  sectionTitle: {
+    display: "block",
+    marginTop: tokens.spacingVerticalS,
   },
   table: {
     tableLayout: "fixed",
@@ -50,22 +90,25 @@ const useStyles = makeStyles({
     minWidth: "900px",
   },
   nameColumn: {
-    width: "16%",
+    width: "14%",
   },
   uniqueNameColumn: {
-    width: "16%",
+    width: "14%",
   },
   versionColumn: {
     width: "8%",
   },
   packageFileColumn: {
-    width: "28%",
+    width: "22%",
   },
   statusColumn: {
-    width: "10%",
+    width: "9%",
+  },
+  managedColumn: {
+    width: "9%",
   },
   actionColumn: {
-    width: "11%",
+    width: "12%",
   },
   ellipsis: {
     display: "block",
@@ -123,6 +166,12 @@ const useStyles = makeStyles({
     borderRadius: tokens.borderRadiusSmall,
     fontFamily: tokens.fontFamilyBase,
     fontSize: tokens.fontSizeBase300,
+  },
+  solutionFilter: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalXS,
+    maxWidth: "460px",
   },
   inputGroup: {
     display: "flex",

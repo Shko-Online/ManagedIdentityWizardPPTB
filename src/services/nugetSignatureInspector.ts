@@ -307,6 +307,10 @@ async function getCertificateDetails(signerCertificate: SignerCertificate): Prom
   };
 }
 
+export async function inspectCmsSignature(signatureBytes: Uint8Array): Promise<SigningCertificateDetails> {
+  return getCertificateDetails(getSignerCertificate(signatureBytes));
+}
+
 export async function inspectNugetSignature(
   packageBytes: Uint8Array,
 ): Promise<NugetSignatureInspection> {
@@ -328,7 +332,7 @@ export async function inspectNugetSignature(
 
     return {
       signatureStatus: "signed",
-      certificate: await getCertificateDetails(getSignerCertificate(signatureBytes)),
+      certificate: await inspectCmsSignature(signatureBytes),
     };
   } catch (error) {
     throw new Error(`Unable to inspect the NuGet package signature: ${(error as Error).message}`);

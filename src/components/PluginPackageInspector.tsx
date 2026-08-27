@@ -43,14 +43,23 @@ import {
   type ManagedIdentityCloud,
 } from "../services/managedIdentitySubject";
 import {
+  getPluginComponentTypes,
+  getPluginAssemblyContent,
   getPluginPackageContent,
+  getSolutionComponentObjectIds,
+  listPluginAssemblies,
+  listPluginSolutions,
   listPluginPackages,
+  type PluginComponentTypes,
+  type PluginAssemblyRecord,
   type PluginPackageRecord,
+  type SolutionRecord,
 } from "../services/pluginPackageService";
 import {
   inspectNugetSignature,
   type NugetSignatureInspection,
 } from "../services/nugetSignatureInspector";
+import { inspectPluginAssemblySignature } from "../services/pluginAssemblySignatureInspector";
 import { LogsContext } from "../context/LogsContext";
 import { ConnectionContext } from "../context/ConnectionContext";
 
@@ -77,6 +86,12 @@ function getExportFileName(packageRecord: PluginPackageRecord): string {
   return `${packageRecord.uniqueName || packageRecord.id}.nupkg`;
 }
 
+function getAssemblyExportFileName(assemblyRecord: PluginAssemblyRecord): string {
+  return assemblyRecord.name.toLowerCase().endsWith(".dll")
+    ? assemblyRecord.name
+    : `${assemblyRecord.name}.dll`;
+}
+
 function EllipsisText({ value, className }: { value: string; className: string }) {
   return <span className={className} title={value}>{value}</span>;
 }
@@ -85,9 +100,38 @@ function getCertificateIdentity(distinguishedName: string): string {
   return getCommonName(distinguishedName) ?? distinguishedName;
 }
 
+type InspectedComponentType = "assembly" | "package";
+
+function getSignedLabel(componentType: InspectedComponentType): string {
+  return componentType === "assembly" ? "Signed Plugin Assembly" : "Signed Plugin Package";
+}
+
+function createNameMatcher(filter: string): (name: string) => boolean {
+  const trimmedFilter = filter.trim();
+
+  if (!trimmedFilter) {
+    return () => true;
+  }
+
+  const normalizedFilter = trimmedFilter.toLocaleLowerCase();
+  return (name) => String(name ?? "").toLocaleLowerCase().includes(normalizedFilter);
+}
+
 export const PluginPackageInspector: React.FC = () => {
   const styles = useStyles();
   const [packages, setPackages] = useState<PluginPackageRecord[]>([]);
+  const [assemblies, setAssemblies] = useState<PluginAssemblyRecord[]>([]);
+  const [activeTab, setActiveTab] = useState<"packages" | "assemblies">("packages");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [nameFilter, setNameFilter] = useState("");
+  const [solutions, setSolutions] = useState<SolutionRecord[]>([]);
+  const [componentTypes, setComponentTypes] = useState<PluginComponentTypes | null>(null);
+  const [selectedSolutionId, setSelectedSolutionId] = useState("");
+  const [solutionComponentIds, setSolutionComponentIds] = useState<{
+    assemblies: Set<string>;
+    packages: Set<string>;
+  } | null>(null);
+  const [isLoadingSolutions, setIsLoadingSolutions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cloud, setCloud] = useState<ManagedIdentityCloud>("public");
@@ -97,10 +141,79 @@ export const PluginPackageInspector: React.FC = () => {
   const [isInspectingPackageId, setIsInspectingPackageId] = useState<string | null>(null);
   const [isExportingPackageId, setIsExportingPackageId] = useState<string | null>(null);
   const [inspectedPackageName, setInspectedPackageName] = useState<string | null>(null);
+  const [inspectedComponentType, setInspectedComponentType] = useState<InspectedComponentType>("package");
   const [inspection, setInspection] = useState<NugetSignatureInspection | null>(null);
   const [isCertificateDetailsOpen, setIsCertificateDetailsOpen] = useState(false);
   const {addLog} = useContext(LogsContext);
   const {connection} = useContext(ConnectionContext);
+
+  useEffect(() => {
+    if (!connection) {
+      setSolutions([]);
+      setComponentTypes(null);
+      setSelectedSolutionId("");
+      return;
+    }
+
+    const loadSolutions = async () => {
+      setIsLoadingSolutions(true);
+
+      try {
+        const types = await getPluginComponentTypes(window.dataverseAPI);
+        const solutionRecords = await listPluginSolutions(window.dataverseAPI, types);
+        setComponentTypes(types);
+        setSolutions(solutionRecords);
+      } catch (solutionError) {
+        addLog(`Unable to retrieve plugin solutions: ${(solutionError as Error).message}`, "warning");
+      } finally {
+        setIsLoadingSolutions(false);
+      }
+    };
+
+    loadSolutions();
+  }, [connection, addLog]);
+
+  useEffect(() => {
+    if (!selectedSolutionId || !componentTypes) {
+      setSolutionComponentIds(null);
+      return;
+    }
+
+    let isCurrent = true;
+
+    const loadSolutionPackages = async () => {
+      try {
+        const [assemblyIds, packageIds] = await Promise.all([
+          getSolutionComponentObjectIds(
+            window.dataverseAPI,
+            selectedSolutionId,
+            componentTypes.plugin,
+          ),
+          getSolutionComponentObjectIds(
+            window.dataverseAPI,
+            selectedSolutionId,
+            componentTypes.pluginpackage,
+          ),
+        ]);
+
+        if (isCurrent) {
+          setSolutionComponentIds({ assemblies: assemblyIds, packages: packageIds });
+        }
+      } catch (solutionError) {
+        if (isCurrent) {
+          const message = `Unable to filter packages by solution: ${(solutionError as Error).message}`;
+          setError(message);
+          addLog(message, "error");
+          setSolutionComponentIds(null);
+        }
+      }
+    };
+
+    loadSolutionPackages();
+    return () => {
+      isCurrent = false;
+    };
+  }, [componentTypes, selectedSolutionId, addLog]);
 
   useEffect(() => {
     if (!connection) {
@@ -182,9 +295,13 @@ export const PluginPackageInspector: React.FC = () => {
     setError(null);
 
     try {
-      const records = await listPluginPackages(window.dataverseAPI);
-      setPackages(records);
-      addLog(`Loaded ${records.length} plugin package(s).`, "success");
+      const [packageRecords, assemblyRecords] = await Promise.all([
+        listPluginPackages(window.dataverseAPI),
+        listPluginAssemblies(window.dataverseAPI),
+      ]);
+      setPackages(packageRecords);
+      setAssemblies(assemblyRecords);
+      addLog(`Loaded ${packageRecords.length} plugin package(s) and ${assemblyRecords.length} plugin assembly(s).`, "success");
     } catch (loadError) {
       const message = `Unable to load plugin packages: ${(loadError as Error).message}`;
       setError(message);
@@ -225,6 +342,35 @@ export const PluginPackageInspector: React.FC = () => {
     }
   }, [connection, addLog]);
 
+  const exportAssembly = useCallback(async (assemblyRecord: PluginAssemblyRecord) => {
+    if (!connection) {
+      return;
+    }
+
+    setIsExportingPackageId(assemblyRecord.id);
+    setError(null);
+
+    try {
+      const assemblyBytes = await getPluginAssemblyContent(window.dataverseAPI, assemblyRecord.id);
+      const savedPath = await window.toolboxAPI.fileSystem.saveFile(
+        getAssemblyExportFileName(assemblyRecord),
+        Buffer.from(assemblyBytes),
+        [{ name: "Plugin assembly", extensions: ["dll"] }],
+      );
+
+      addLog(savedPath
+        ? `Exported ${assemblyRecord.name} to ${savedPath}.`
+        : `Export cancelled for ${assemblyRecord.name}.`,
+      savedPath ? "success" : "info");
+    } catch (exportError) {
+      const message = `Unable to export ${assemblyRecord.name}: ${(exportError as Error).message}`;
+      setError(message);
+      addLog(message, "error");
+    } finally {
+      setIsExportingPackageId(null);
+    }
+  }, [connection, addLog]);
+
   const inspectPackage = useCallback(async (packageRecord: PluginPackageRecord) => {
     if (!connection) {
       return;
@@ -234,6 +380,7 @@ export const PluginPackageInspector: React.FC = () => {
     setError(null);
     setInspection(null);
     setInspectedPackageName(packageRecord.name);
+    setInspectedComponentType("package");
     setIsCertificateDetailsOpen(false);
 
     try {
@@ -253,11 +400,41 @@ export const PluginPackageInspector: React.FC = () => {
     }
   }, [connection, addLog]);
 
+  const inspectAssembly = useCallback(async (assemblyRecord: PluginAssemblyRecord) => {
+    if (!connection) {
+      return;
+    }
+
+    setIsInspectingPackageId(assemblyRecord.id);
+    setError(null);
+    setInspection(null);
+    setInspectedPackageName(assemblyRecord.name);
+    setInspectedComponentType("assembly");
+    setIsCertificateDetailsOpen(false);
+
+    try {
+      const assemblyBytes = await getPluginAssemblyContent(window.dataverseAPI, assemblyRecord.id);
+      const result = await inspectPluginAssemblySignature(assemblyBytes);
+      setInspection(result);
+      addLog(
+        `${assemblyRecord.name} is ${result.signatureStatus === "signed" ? "signed" : "unsigned"}.`,
+        result.signatureStatus === "signed" ? "success" : "warning",
+      );
+    } catch (inspectionError) {
+      const message = `Unable to inspect ${assemblyRecord.name}: ${(inspectionError as Error).message}`;
+      setError(message);
+      addLog(message, "error");
+    } finally {
+      setIsInspectingPackageId(null);
+    }
+  }, [connection, addLog]);
+
   const inspectLocalPackage = useCallback(async () => {
     setIsInspectingPackageId("local");
     setError(null);
     setInspection(null);
     setInspectedPackageName(null);
+    setInspectedComponentType("package");
     setIsCertificateDetailsOpen(false);
 
     try {
@@ -303,6 +480,31 @@ export const PluginPackageInspector: React.FC = () => {
     }
   }, [addLog]);
 
+  const solutionPackages = selectedSolutionId && solutionComponentIds
+    ? packages.filter((packageRecord) => solutionComponentIds.packages.has(packageRecord.id))
+    : packages;
+  const solutionAssemblies = selectedSolutionId && solutionComponentIds
+    ? assemblies.filter((assemblyRecord) => solutionComponentIds.assemblies.has(assemblyRecord.id))
+    : assemblies;
+  const nameMatcher = createNameMatcher(nameFilter);
+  const visiblePackages = solutionPackages.filter((packageRecord) => nameMatcher(packageRecord.name));
+  const visibleAssemblies = solutionAssemblies.filter((assemblyRecord) => nameMatcher(assemblyRecord.name));
+  const activeRecordCount = activeTab === "packages" ? visiblePackages.length : visibleAssemblies.length;
+  const pageCount = Math.max(1, Math.ceil(activeRecordCount / 10));
+  const pageStart = (currentPage - 1) * 10;
+  const pagedPackages = visiblePackages.slice(pageStart, pageStart + 10);
+  const pagedAssemblies = visibleAssemblies.slice(pageStart, pageStart + 10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, nameFilter, selectedSolutionId]);
+
+  useEffect(() => {
+    if (currentPage > pageCount) {
+      setCurrentPage(pageCount);
+    }
+  }, [currentPage, pageCount]);
+
   return (
     <Card className={styles.card}>
       <CardHeader
@@ -318,6 +520,21 @@ export const PluginPackageInspector: React.FC = () => {
             Read package signing certificates for managed identity configuration.
           </Text>
           <div className={styles.commandGroup}>
+            {solutions.length > 0 && (
+              <select
+                aria-label="Solution filter"
+                className={styles.toolbarSelect}
+                value={selectedSolutionId}
+                onChange={(event) => setSelectedSolutionId(event.target.value)}
+              >
+                <option value="">All solutions</option>
+                {solutions.map((solution) => (
+                  <option key={solution.id} value={solution.id}>
+                    {solution.uniqueName}{solution.isManaged ? " (managed)" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
             <Button
               icon={<FolderOpen24Regular />}
               onClick={inspectLocalPackage}
@@ -337,13 +554,46 @@ export const PluginPackageInspector: React.FC = () => {
         </div>
 
         {isLoading && <Spinner label="Loading plugin packages..." />}
+        {isLoadingSolutions && <Spinner label="Loading solutions with plug-in components..." />}
         {error && <Text className={styles.error}>{error}</Text>}
 
-        {!isLoading && !error && packages.length === 0 && (
-          <Text className={styles.muted}>Refresh to load plugin packages from the connected environment.</Text>
+        {!isLoading && !error && packages.length === 0 && assemblies.length === 0 && (
+          <Text className={styles.muted}>Refresh to load plug-in packages and assemblies from the connected environment.</Text>
         )}
 
-        {packages.length > 0 && (
+        {(visiblePackages.length > 0 || visibleAssemblies.length > 0) && (
+          <>
+            <div className={styles.tabs} role="tablist" aria-label="Component type">
+              <div className={styles.tabButtons}>
+                <Button
+                  appearance="subtle"
+                  className={activeTab === "packages" ? styles.activeTab : undefined}
+                  role="tab"
+                  aria-selected={activeTab === "packages"}
+                  onClick={() => setActiveTab("packages")}
+                >
+                  Plugin packages ({visiblePackages.length})
+                </Button>
+                <Button
+                  appearance="subtle"
+                  className={activeTab === "assemblies" ? styles.activeTab : undefined}
+                  role="tab"
+                  aria-selected={activeTab === "assemblies"}
+                  onClick={() => setActiveTab("assemblies")}
+                >
+                  Plugin assemblies ({visibleAssemblies.length})
+                </Button>
+              </div>
+              <Input
+                className={styles.nameFilter}
+                aria-label="Filter component names"
+                value={nameFilter}
+                placeholder="Filter by name"
+                onChange={(_event, data) => setNameFilter(data.value.replace(/\//g, ""))}
+              />
+            </div>
+
+            {activeTab === "packages" && (
           <div className={styles.tableContainer}>
             <Table className={styles.table} size="small" aria-label="Plugin packages">
               <TableHeader>
@@ -353,18 +603,24 @@ export const PluginPackageInspector: React.FC = () => {
                   <TableHeaderCell className={styles.versionColumn}>Version</TableHeaderCell>
                   <TableHeaderCell className={styles.packageFileColumn}>Package file</TableHeaderCell>
                   <TableHeaderCell className={styles.statusColumn}>Status</TableHeaderCell>
+                  <TableHeaderCell className={styles.managedColumn}>Solution Type</TableHeaderCell>
                   <TableHeaderCell className={styles.actionColumn}>Inspect</TableHeaderCell>
                   <TableHeaderCell className={styles.actionColumn}>Export</TableHeaderCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {packages.map((packageRecord) => (
+                {pagedPackages.map((packageRecord) => (
                   <TableRow key={packageRecord.id}>
                     <TableCell className={styles.nameColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.name} /></TableCell>
                     <TableCell className={styles.uniqueNameColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.uniqueName || "-"} /></TableCell>
                     <TableCell className={styles.versionColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.version || "-"} /></TableCell>
                     <TableCell className={styles.packageFileColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.packageName ?? "No package file"} /></TableCell>
                     <TableCell className={styles.statusColumn}><EllipsisText className={styles.ellipsis} value={getStatus(packageRecord)} /></TableCell>
+                    <TableCell className={styles.managedColumn}>
+                      <Badge appearance="tint" color={packageRecord.isManaged ? "brand" : "informative"}>
+                        {packageRecord.isManaged ? "Managed" : "Unmanaged"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className={styles.actionColumn}>
                       <Button
                         appearance="subtle"
@@ -388,6 +644,65 @@ export const PluginPackageInspector: React.FC = () => {
               </TableBody>
             </Table>
           </div>
+            )}
+
+            {activeTab === "assemblies" && (
+          <div className={styles.tableContainer}>
+            <Table className={styles.table} size="small" aria-label="Plugin assemblies">
+              <TableHeader>
+                <TableRow>
+                  <TableHeaderCell className={styles.nameColumn}>Name</TableHeaderCell>
+                  <TableHeaderCell className={styles.versionColumn}>Version</TableHeaderCell>
+                  <TableHeaderCell className={styles.managedColumn}>Solution Type</TableHeaderCell>
+                  <TableHeaderCell className={styles.actionColumn}>Inspect</TableHeaderCell>
+                  <TableHeaderCell className={styles.actionColumn}>Export</TableHeaderCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagedAssemblies.map((assemblyRecord) => (
+                  <TableRow key={assemblyRecord.id}>
+                    <TableCell className={styles.nameColumn}><EllipsisText className={styles.ellipsis} value={assemblyRecord.name} /></TableCell>
+                    <TableCell className={styles.versionColumn}><EllipsisText className={styles.ellipsis} value={assemblyRecord.version || "-"} /></TableCell>
+                    <TableCell className={styles.managedColumn}>
+                      <Badge appearance="tint" color={assemblyRecord.isManaged ? "brand" : "informative"}>
+                        {assemblyRecord.isManaged ? "Managed" : "Unmanaged"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={styles.actionColumn}>
+                      <Button
+                        appearance="subtle"
+                        icon={<DocumentSearch24Regular />}
+                        aria-label={`Inspect ${assemblyRecord.name}`}
+                        onClick={() => inspectAssembly(assemblyRecord)}
+                        disabled={isInspectingPackageId !== null || isExportingPackageId !== null}
+                      />
+                    </TableCell>
+                    <TableCell className={styles.actionColumn}>
+                      <Button
+                        appearance="subtle"
+                        icon={<Save24Regular />}
+                        aria-label={`Export ${assemblyRecord.name}`}
+                        onClick={() => exportAssembly(assemblyRecord)}
+                        disabled={isInspectingPackageId !== null || isExportingPackageId !== null}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+            )}
+
+            <div className={styles.pagination}>
+              <Text className={styles.muted}>Page {currentPage} of {pageCount}</Text>
+              <Button appearance="subtle" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>
+                Previous
+              </Button>
+              <Button appearance="subtle" onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))} disabled={currentPage === pageCount}>
+                Next
+              </Button>
+            </div>
+          </>
         )}
 
         {isInspectingPackageId && <Spinner label="Reading and inspecting package content..." />}
@@ -402,7 +717,7 @@ export const PluginPackageInspector: React.FC = () => {
               <>
                 <div className={styles.inspectionGrid}>
                   <Text className={styles.inspectionLabel}>Signature</Text>
-                  <Badge appearance="filled" color="success">Signed NuGet package</Badge>
+                  <Badge appearance="filled" color="success">{getSignedLabel(inspectedComponentType)}</Badge>
                   <Text className={styles.inspectionLabel}>Certificate</Text>
                   <Text>{inspection.certificate.isSelfSigned ? "Self-signed" : "Issuer-signed"}</Text>
                   <Text className={styles.inspectionLabel}>Signer</Text>

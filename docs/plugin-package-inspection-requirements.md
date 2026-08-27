@@ -42,10 +42,14 @@ Provide a Power Platform ToolBox workflow that reads plugin package records from
 10. For a signed package, retrieve `TenantId` and `OrganizationId` using the `RetrieveCurrentOrganization` function, while allowing manual edits, then combine those values with cloud configuration to compute the Step 3 federated credential issuer and version 2 subject identifier. Provide a Toolbox clipboard action for each generated value.
 11. Allow the user to export a selected plugin package as a `.nupkg` file through the Toolbox file-system API. Toolbox's native save dialog chooses the destination, the file name is prefilled from package metadata, and package bytes are downloaded only for the export operation.
 12. Allow the user to select a local `.nupkg` through the Toolbox file picker and inspect its signature and certificate details without requiring a Dataverse connection. Read the selected package as binary data in memory only.
+13. Retrieve the `plugin` and `pluginpackage` solution component types from `solutioncomponentdefinitions`, list solutions containing either component type, and filter displayed plugin packages and plugin assemblies by the selected solution's `solutioncomponents` records.
+14. Display packages and assemblies in separate tabs with client-side pagination. Show whether each component belongs to a managed or unmanaged solution, move the solution filter into the command toolbar, and provide Authenticode inspection and binary export actions for plugin assemblies.
+15. Exclude plugin assemblies associated with a plugin package by filtering `pluginassemblies` where `_packageid_value eq null`. Keep assemblies without stored binary content visible, but report that special or externally hosted assemblies cannot be inspected or exported when an action is requested.
+16. Provide a client-side name filter beside the component tabs. Plain text uses case-insensitive contains matching; Apply the filter only after the input loses focus or by pressing `Enter` key.
 
 ## Data Access
 
-The Plugin Package entity set is `pluginpackages`. The list request excludes package payload fields. Inspection uses `InitializeFileBlocksDownload` with a `pluginpackage` target and `FileAttributeName` set to `package`, then retrieves each Base64 `Data` block using `DownloadBlock` until `FileSizeInBytes` is reached. The blocks are decoded and assembled in memory. The related `fileattachment` identifies file metadata but is not the action target. Browser `fetch` is not used.
+The Plugin Package entity set is `pluginpackages`. The list request excludes package payload fields. Package inspection uses `InitializeFileBlocksDownload` with a `pluginpackage` target and `FileAttributeName` set to `package`, then decodes and assembles each `DownloadBlock` Base64 payload in memory. `pluginassembly.content` is not a Dataverse File column and cannot use `InitializeFileBlocksDownload`; assembly inspection retrieves the `content_binary` property first and falls back to the Base64 `content` property. Browser `fetch` is not used.
 
 ## Non-Goals
 

@@ -22,14 +22,53 @@ export interface PluginPackageRecord {
   packageName: string | null;
   fileId: string | null;
   managedIdentityId: string | null;
+  isManaged: boolean;
   stateCode: number | null;
   statusCode: number | null;
 }
 
+export interface SolutionRecord {
+  id: string;
+  uniqueName: string;
+  isManaged: boolean;
+}
+
+export interface PluginAssemblyRecord {
+  id: string;
+  name: string;
+  version: string;
+  isManaged: boolean;
+}
+
+export interface PluginComponentTypes {
+  plugin: number;
+  pluginpackage: number;
+}
+
 const PLUGIN_PACKAGE_QUERY = [
-  "pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,statecode,statuscode,_managedidentityid_value",
+  "pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,statecode,statuscode,_managedidentityid_value",
   "$orderby=name",
 ].join("&");
+
+const PLUGIN_ASSEMBLY_QUERY = [
+  "pluginassemblies?$select=pluginassemblyid,name,version,ismanaged",
+  "$filter=_packageid_value eq null",
+  "$orderby=name",
+].join("&");
+
+const PLUGIN_COMPONENT_DEFINITIONS_QUERY = "solutioncomponentdefinitions?$select=primaryentityname,solutioncomponenttype" +
+  "&$filter=(Microsoft.Dynamics.CRM.In(PropertyName=%27primaryentityname%27,PropertyValues=[%27plugin%27,%27pluginpackage%27]))";
+
+function createSolutionsQuery(componentTypes: PluginComponentTypes): string {
+  const componentTypeValues = [componentTypes.plugin, componentTypes.pluginpackage]
+    .map((componentType) => `%27${componentType}%27`)
+    .join(",");
+  const componentFilter = `(Microsoft.Dynamics.CRM.In(PropertyName=%27componenttype%27,PropertyValues=[${componentTypeValues}]))`;
+
+  return "solutions?$select=solutionid,ismanaged,uniquename" +
+    `&$expand=solution_solutioncomponent($select=solutioncomponentid;${"$filter=" + componentFilter})` +
+    `&$filter=(solution_solutioncomponent/any(o1:(o1/Microsoft.Dynamics.CRM.In(PropertyName=%27componenttype%27,PropertyValues=[${componentTypeValues}]))))`;
+}
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
@@ -54,6 +93,7 @@ function mapPluginPackage(record: Record<string, unknown>): PluginPackageRecord 
     packageName: asString(record.package_name),
     fileId: asString(record.fileid),
     managedIdentityId: asString(record._managedidentityid_value),
+    isManaged: record.ismanaged === true,
     stateCode: asNumber(record.statecode),
     statusCode: asNumber(record.statuscode),
   };
@@ -64,6 +104,90 @@ export async function listPluginPackages(
 ): Promise<PluginPackageRecord[]> {
   const result = await dataverseAPI.queryData(PLUGIN_PACKAGE_QUERY);
   return result.value.map(mapPluginPackage);
+}
+
+export async function listPluginAssemblies(
+  dataverseAPI: DataverseAPI.API,
+): Promise<PluginAssemblyRecord[]> {
+  const result = await dataverseAPI.queryData(PLUGIN_ASSEMBLY_QUERY);
+
+  return result.value.map((record) => {
+    const id = asString(record.pluginassemblyid);
+
+    if (!id) {
+      throw new Error("Dataverse returned a plugin assembly without pluginassemblyid.");
+    }
+
+    return {
+      id,
+      name: asString(record.name) ?? "(unnamed assembly)",
+      version: asString(record.version) ?? "",
+      isManaged: record.ismanaged === true,
+    };
+  });
+}
+
+export async function getPluginComponentTypes(
+  dataverseAPI: DataverseAPI.API,
+): Promise<PluginComponentTypes> {
+  const result = await dataverseAPI.queryData(PLUGIN_COMPONENT_DEFINITIONS_QUERY);
+  const componentTypes = new Map<string, number>();
+
+  for (const record of result.value) {
+    const entityName = asString(record.primaryentityname);
+    const componentType = asNumber(record.solutioncomponenttype);
+
+    if (entityName && componentType !== null) {
+      componentTypes.set(entityName, componentType);
+    }
+  }
+
+  const plugin = componentTypes.get("plugin");
+  const pluginpackage = componentTypes.get("pluginpackage");
+
+  if (plugin === undefined || pluginpackage === undefined) {
+    throw new Error("Dataverse did not return solution component types for plugin and pluginpackage.");
+  }
+
+  return { plugin, pluginpackage };
+}
+
+export async function listPluginSolutions(
+  dataverseAPI: DataverseAPI.API,
+  componentTypes: PluginComponentTypes,
+): Promise<SolutionRecord[]> {
+  const result = await dataverseAPI.queryData(createSolutionsQuery(componentTypes));
+
+  return result.value.map((record) => {
+    const id = asString(record.solutionid);
+    const uniqueName = asString(record.uniquename);
+
+    if (!id || !uniqueName) {
+      throw new Error("Dataverse returned a solution without solutionid or uniquename.");
+    }
+
+    return {
+      id,
+      uniqueName,
+      isManaged: record.ismanaged === true,
+    };
+  });
+}
+
+export async function getSolutionComponentObjectIds(
+  dataverseAPI: DataverseAPI.API,
+  solutionId: string,
+  componentType: number,
+): Promise<Set<string>> {
+  const query = "solutioncomponents?$select=objectid" +
+    `&$filter=_solutionid_value eq ${solutionId} and componenttype eq ${componentType}`;
+  const result = await dataverseAPI.queryData(query);
+
+  return new Set(
+    result.value
+      .map((record) => asString(record.objectid))
+      .filter((id): id is string => id !== null),
+  );
 }
 
 function decodeBase64(value: string): Uint8Array {
@@ -91,19 +215,17 @@ function asPositiveNumber(value: unknown, propertyName: string): number {
   return numberValue;
 }
 
-export async function getPluginPackageContent(
+async function getFileColumnContent(
   dataverseAPI: DataverseAPI.API,
-  pluginPackageId: string,
+  target: Record<string, string>,
+  fileAttributeName: string,
 ): Promise<Uint8Array> {
   const initializeResponse = await dataverseAPI.execute({
     operationName: "InitializeFileBlocksDownload",
     operationType: "action",
     parameters: {
-      Target: {
-        "@odata.type": "Microsoft.Dynamics.CRM.pluginpackage",
-        pluginpackageid: pluginPackageId,
-      },
-      FileAttributeName: "package",
+      Target: target,
+      FileAttributeName: fileAttributeName,
     },
   });
 
@@ -139,4 +261,42 @@ export async function getPluginPackageContent(
   }
 
   return fileBytes;
+}
+
+export async function getPluginPackageContent(
+  dataverseAPI: DataverseAPI.API,
+  pluginPackageId: string,
+): Promise<Uint8Array> {
+  return getFileColumnContent(dataverseAPI, {
+    "@odata.type": "Microsoft.Dynamics.CRM.pluginpackage",
+    pluginpackageid: pluginPackageId,
+  }, "package");
+}
+
+export async function getPluginAssemblyContent(
+  dataverseAPI: DataverseAPI.API,
+  pluginAssemblyId: string,
+): Promise<Uint8Array> {
+  const record = await dataverseAPI.retrieve(
+    "pluginassembly",
+    pluginAssemblyId,
+    ["content_binary", "content"],
+  );
+  const binaryContent = record.content_binary;
+
+  if (binaryContent instanceof Uint8Array) {
+    return new Uint8Array(binaryContent);
+  }
+
+  if (Array.isArray(binaryContent) && binaryContent.every((byte) => typeof byte === "number")) {
+    return new Uint8Array(binaryContent);
+  }
+
+  const content = asString(binaryContent) ?? asString(record.content);
+
+  if (!content) {
+    throw new Error("This plugin assembly has no stored binary content. Special or externally hosted assemblies cannot be inspected or exported.");
+  }
+
+  return decodeBase64(content);
 }
