@@ -20,6 +20,10 @@
     "repository": "https://github.com/Shko-Online/ManagedIdentityWizardPPTB",
     "website": "https://shko.online"
   },
+  "repository": {
+    "url": "https://github.com/Shko-Online/ManagedIdentityWizardPPTB",
+    "type": "git"
+  },
   "icon": "ShkoOnline.svg",
   "license": "Apache-2.0",
   "engines": {
@@ -56,7 +60,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "eslint": "^9.39.5",
+    "eslint": "^10.9.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jiti": "^2.7.0",

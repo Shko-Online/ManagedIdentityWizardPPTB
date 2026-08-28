@@ -1,4 +1,3 @@
-import globals from "globals";
 import tseslint from "typescript-eslint";
 import pluginReact from "eslint-plugin-react";
 import reactHooks from 'eslint-plugin-react-hooks';
@@ -12,15 +11,25 @@ export default defineConfig([
   {
     settings: {
       react: {
-        // Automatically detects your installed React version
-        version: "detect",
+        // "detect" crashes on eslint-plugin-react 7.37.5 + ESLint 10 (context.getFilename removed)
+        version: "18.3.1",
       },
     },
   },
   tseslint.configs.recommended,
-  pluginReact.configs.flat.recommended,
-  reactHooks.configs.flat.recommended,
-  pluginReact.configs.flat['jsx-runtime'], 
+  {
+    // Only apply React-specific configs to source files, not to config files like this one
+    files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    ...pluginReact.configs.flat.recommended,
+  },
+  {
+    files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    ...reactHooks.configs.flat.recommended,
+  },
+  {
+    files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    ...pluginReact.configs.flat['jsx-runtime'],
+  },
   {
     files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     ignores: ["node_modules", "dist"],
@@ -30,8 +39,7 @@ export default defineConfig([
         ecmaFeatures: {
           jsx: true,
         },
-      },
-      globals: globals.browser,
+      }
     },
     rules: {
       "sort-imports": "error",
