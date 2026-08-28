@@ -14,17 +14,17 @@
    limitations under the License.
  */
 
-import React, { useMemo } from "react";
-import { LogEntry } from "../context/LogsContext";
 import {
   TableCell,
-  TableRow,
   TableCellLayout,
+  TableRow,
   Text,
 } from "@fluentui/react-components";
+import { LogEntry } from "../context/LogsContext";
 import useLogTableRowStyles from "../styles/LogTableRow";
+import { useMemo } from "react";
 
-const LogTableRow: React.FC<{ log: LogEntry }> = ({ log }) => {
+const LogTableRow: React.FC<{ log: LogEntry }> = ({ log }: { log: LogEntry }) => {
   const styles = useLogTableRowStyles();
 
   const logTypeStyle = useMemo(() => {

@@ -14,22 +14,22 @@
    limitations under the License.
  */
 
-import React, { useContext } from "react";
-import { ConnectionContext } from "../context/ConnectionContext";
 import {
+  Badge,
   Card,
   CardHeader,
   Spinner,
   Text,
-  Badge,
   tokens,
 } from "@fluentui/react-components";
-import useStyles from "../styles/ConnectionStatus";
 import {
   CheckmarkCircle24Regular,
   Warning24Regular,
 } from "@fluentui/react-icons";
+import { ConnectionContext } from "../context/ConnectionContext";
 import getEnvironmentColor from "../utils/getEnvironmentColor";
+import { useContext } from "react";
+import useStyles from "../styles/ConnectionStatus";
 
 export const ConnectionStatus: React.FC = () => {
   const styles = useStyles();

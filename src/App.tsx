@@ -14,20 +14,20 @@
    limitations under the License.
  */
 
-import React, {  useEffect, useContext } from 'react';
-import { LogsContext } from './context/LogsContext';
-import { FluentProvider, webLightTheme, webDarkTheme, Title3, Text } from '@fluentui/react-components';
-import useStyles from './styles/App';
+import { FluentProvider, Text, Title3, webDarkTheme, webLightTheme } from '@fluentui/react-components';
+import { useContext, useEffect, useState } from 'react';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { EventLog } from './components/EventLog';
+import { LogsContext } from './context/LogsContext';
 import { PluginPackageInspector } from './components/PluginPackageInspector';
-import ToolboxAPIContext from './context/ToolboxAPIContext';
 import { ShkoOnlineAd } from './components/ShkoOnlineAd';
+import ToolboxAPIContext from './context/ToolboxAPIContext';
+import useStyles from './styles/App';
 
 function App() {
     const toolboxAPI = useContext(ToolboxAPIContext);
     const { addLog } = useContext(LogsContext);
-    const [theme, setTheme] = React.useState<'light' | 'dark'>('light');
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const styles = useStyles();
 
     // Add initial log (run only once on mount)

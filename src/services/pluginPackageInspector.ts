@@ -14,7 +14,7 @@
    limitations under the License.
  */
 
-import { PluginPackageRecord, PluginAssemblyRecord } from "./pluginPackageService";
+import { PluginAssemblyRecord, PluginPackageRecord } from "./pluginPackageService";
 import { getCommonName } from "../utils/distinguishedName";
 
 export function getStatus(packageRecord: PluginPackageRecord): string {

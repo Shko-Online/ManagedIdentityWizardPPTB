@@ -14,15 +14,15 @@
    limitations under the License.
  */
 
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App";
+import "./showBanner";
 import "./index.css";
-import ToolboxAPIProvider from "./components/ToolboxAPIProvider";
-import LogsProvider from "./components/LogsProvider";
+import App from "./App";
 import ConnectionProvider from "./components/ConnectionProvider";
 import DataverseAPIProvider from "./components/DataverseAPIProvider";
-import "./showBanner";
+import LogsProvider from "./components/LogsProvider";
+import { StrictMode } from "react";
+import ToolboxAPIProvider from "./components/ToolboxAPIProvider";
+import { createRoot } from "react-dom/client";
 
 // Ensure DOM is ready and root element exists
 const rootElement = document.getElementById("root");

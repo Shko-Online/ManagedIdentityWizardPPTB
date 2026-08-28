@@ -14,7 +14,20 @@
    limitations under the License.
  */
 
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import {
+  ArrowSortDown24Regular,
+  ArrowSortUp24Regular,
+  ArrowSync24Regular,
+  Certificate24Regular,
+  CheckmarkCircle24Regular,
+  Copy24Regular,
+  Dismiss24Regular,
+  DocumentSearch24Regular,
+  FolderOpen24Regular,
+  Save24Regular,
+  Settings24Regular,
+} from "@fluentui/react-icons";
+
 import {
   Badge,
   Button,
@@ -31,60 +44,50 @@ import {
   TableRow,
   Text,
 } from "@fluentui/react-components";
-import useStyles from "../styles/PluginPackageInspector";
+
 import {
-    createNameMatcher,
-    formatSolutionDate,
-    getAssemblyExportFileName,
-    getCertificateIdentity,
-    getExportFileName,
-  getSignedLabel,
-  getStatus,
   type InspectedComponentType,
   type SolutionSortKey,
+  createNameMatcher,
+  formatSolutionDate,
+  getAssemblyExportFileName,
+  getCertificateIdentity,
+  getExportFileName,
+  getSignedLabel,
+  getStatus,
 } from "../services/pluginPackageInspector";
+
 import {
-  ArrowSortDown24Regular,
-  ArrowSortUp24Regular,
-  ArrowSync24Regular,
-  Certificate24Regular,
-  CheckmarkCircle24Regular,
-  Copy24Regular,
-  Dismiss24Regular,
-  DocumentSearch24Regular,
-  FolderOpen24Regular,
-  Save24Regular,
-  Settings24Regular,
-} from "@fluentui/react-icons";
-import { Buffer } from "buffer";
-import { CertificateDetailsPopup } from "./CertificateDetailsPopup";
-import {
+  type ManagedIdentityCloud,
+  type ManagedIdentitySubjectResult,
   buildManagedIdentitySubject,
   cloudConfigurations,
-  type ManagedIdentitySubjectResult,
-  type ManagedIdentityCloud,
 } from "../services/managedIdentitySubject";
 import {
-  getPluginComponentTypes,
+  type PluginAssemblyRecord,
+  type PluginComponentTypes,
+  type PluginPackageRecord,
+  type SolutionRecord,
   getPluginAssemblyContent,
+  getPluginComponentTypes,
   getPluginPackageContent,
   getSolutionComponentObjectIds,
   listPluginAssemblies,
-  listPluginSolutions,
   listPluginPackages,
-  type PluginComponentTypes,
-  type PluginAssemblyRecord,
-  type PluginPackageRecord,
-  type SolutionRecord,
+  listPluginSolutions,
 } from "../services/pluginPackageService";
+import { useCallback, useContext, useEffect, useState } from "react";
+import { Buffer } from "buffer";
+import { CertificateDetailsPopup } from "./CertificateDetailsPopup";
+import { ConnectionContext } from "../context/ConnectionContext";
+import DataverseAPIContext from "../context/DataverseAPIContext";
+import EllipsisText from "./EllispsisText";
+import { LogsContext } from "../context/LogsContext";
+import { NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
+import ToolboxAPIContext from "../context/ToolboxAPIContext";
 import { inspectNugetSignature } from "../services/nugetSignatureInspector";
 import { inspectPluginAssemblySignature } from "../services/pluginAssemblySignatureInspector";
-import { LogsContext } from "../context/LogsContext";
-import { ConnectionContext } from "../context/ConnectionContext";
-import { NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
-import DataverseAPIContext from "../context/DataverseAPIContext";
-import ToolboxAPIContext from "../context/ToolboxAPIContext";
-import EllipsisText from "./EllispsisText";
+import useStyles from "../styles/PluginPackageInspector";
 
 export const PluginPackageInspector: React.FC = () => {
   const styles = useStyles();
@@ -143,6 +146,13 @@ export const PluginPackageInspector: React.FC = () => {
   const dataverseAPI = useContext(DataverseAPIContext);
   const toolboxAPI = useContext(ToolboxAPIContext);
 
+  console.log(
+    "PluginPackageInspector render",
+    connection,
+    dataverseAPI,
+    toolboxAPI,
+  );
+
   const loadSolutions = useCallback(async () => {
     if (!connection || !dataverseAPI) {
       return;
@@ -162,18 +172,19 @@ export const PluginPackageInspector: React.FC = () => {
     } finally {
       setIsLoadingSolutions(false);
     }
-  }, [dataverseAPI, addLog]);
+  }, [connection, dataverseAPI, addLog]);
 
   useEffect(() => {
     if (!connection) {
       setSolutions([]);
       setComponentTypes(null);
       setSelectedSolutionId("");
+      addLog("No connection available. Solutions cannot be loaded.", "warning");
       return;
     }
 
     loadSolutions();
-  }, [connection, addLog]);
+  }, [connection, loadSolutions, addLog]);
 
   useEffect(() => {
     if (!selectedSolutionId || !componentTypes) {
@@ -185,8 +196,8 @@ export const PluginPackageInspector: React.FC = () => {
 
     const loadSolutionPackages = async () => {
       if (!connection || !dataverseAPI) {
-          isCurrent = false;
-          return;
+        isCurrent = false;
+        return;
       }
 
       try {
@@ -223,7 +234,7 @@ export const PluginPackageInspector: React.FC = () => {
     return () => {
       isCurrent = false;
     };
-  }, [componentTypes, selectedSolutionId, addLog]);
+  }, [connection, dataverseAPI, componentTypes, selectedSolutionId, addLog]);
 
   const loadOrganizationIdentity = useCallback(async () => {
     if (!connection || !dataverseAPI) {
@@ -254,7 +265,7 @@ export const PluginPackageInspector: React.FC = () => {
         "warning",
       );
     }
-  }, [dataverseAPI, addLog]);
+  }, [connection, dataverseAPI, addLog]);
 
   useEffect(() => {
     if (!connection) {
@@ -262,7 +273,7 @@ export const PluginPackageInspector: React.FC = () => {
     }
 
     loadOrganizationIdentity();
-  }, [connection, addLog, loadOrganizationIdentity]);
+  }, [connection, dataverseAPI, addLog, loadOrganizationIdentity]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -348,7 +359,7 @@ export const PluginPackageInspector: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [connection, addLog]);
+  }, [connection, dataverseAPI, addLog]);
 
   const exportPackage = useCallback(
     async (packageRecord: PluginPackageRecord) => {
@@ -384,7 +395,7 @@ export const PluginPackageInspector: React.FC = () => {
         setIsExportingPackageId(null);
       }
     },
-    [connection, addLog],
+    [connection, dataverseAPI, toolboxAPI, addLog],
   );
 
   const exportAssembly = useCallback(
@@ -421,7 +432,7 @@ export const PluginPackageInspector: React.FC = () => {
         setIsExportingPackageId(null);
       }
     },
-    [connection, addLog],
+    [connection, dataverseAPI, toolboxAPI, addLog],
   );
 
   const inspectPackage = useCallback(
@@ -499,7 +510,7 @@ export const PluginPackageInspector: React.FC = () => {
   );
 
   const inspectLocalPackage = useCallback(async () => {
-    if(!toolboxAPI) {
+    if (!toolboxAPI) {
       return;
     }
 
@@ -526,8 +537,7 @@ export const PluginPackageInspector: React.FC = () => {
         return;
       }
 
-      const packageBytes =
-        await toolboxAPI.fileSystem.readBinary(filePath);
+      const packageBytes = await toolboxAPI.fileSystem.readBinary(filePath);
       const packageName = filePath.split(/[\\/]/).pop() ?? filePath;
       const isAssembly = packageName.toLowerCase().endsWith(".dll");
       const result = isAssembly
@@ -553,7 +563,7 @@ export const PluginPackageInspector: React.FC = () => {
 
   const copyIdentifier = useCallback(
     async (label: string, value: string) => {
-      if(!toolboxAPI) {
+      if (!toolboxAPI) {
         return;
       }
 
@@ -621,23 +631,28 @@ export const PluginPackageInspector: React.FC = () => {
     setPendingSolutionId(selectedSolutionId);
     setIsSolutionPickerOpen(true);
   }, [selectedSolutionId]);
-  const sortSolutionsBy = useCallback((sortKey: SolutionSortKey) => {
-    if (solutionSortKey === sortKey) {
-      setSolutionSortDescending((descending) => !descending);
-    } else {
-      setSolutionSortKey(sortKey);
-      setSolutionSortDescending(false);
-    }
-  }, [solutionSortKey, solutionSortDescending]);
-  const sortIcon = useCallback((sortKey: SolutionSortKey) =>
-    solutionSortKey === sortKey ? (
-      solutionSortDescending ? (
-        <ArrowSortDown24Regular />
-      ) : (
-        <ArrowSortUp24Regular />
-      )
-    ) : null,
-  [solutionSortKey, solutionSortDescending],
+
+  const sortSolutionsBy = useCallback(
+    (sortKey: SolutionSortKey) => {
+      if (solutionSortKey === sortKey) {
+        setSolutionSortDescending((descending) => !descending);
+      } else {
+        setSolutionSortKey(sortKey);
+        setSolutionSortDescending(false);
+      }
+    },
+    [solutionSortKey],
+  );
+  const sortIcon = useCallback(
+    (sortKey: SolutionSortKey) =>
+      solutionSortKey === sortKey ? (
+        solutionSortDescending ? (
+          <ArrowSortDown24Regular />
+        ) : (
+          <ArrowSortUp24Regular />
+        )
+      ) : null,
+    [solutionSortKey, solutionSortDescending],
   );
   const nameMatcher = createNameMatcher(nameFilter);
   const visiblePackages = solutionPackages.filter((packageRecord) =>

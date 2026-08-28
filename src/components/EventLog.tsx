@@ -14,21 +14,21 @@
    limitations under the License.
  */
 
-import React, { useContext } from "react";
-import { LogsContext } from "../context/LogsContext";
-import LogTableRow from "./LogTableRow";
 import {
+  Button,
   Card,
   CardHeader,
-  Button,
   Table,
   TableBody,
-  TableRow,
   TableHeader,
   TableHeaderCell,
+  TableRow,
   Text,
 } from "@fluentui/react-components";
 import { Dismiss24Regular } from "@fluentui/react-icons";
+import LogTableRow from "./LogTableRow";
+import { LogsContext } from "../context/LogsContext";
+import { useContext } from "react";
 import useEventLogStyles from "../styles/EventLog";
 
 export const EventLog: React.FC = () => {

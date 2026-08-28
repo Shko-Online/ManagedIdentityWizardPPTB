@@ -14,13 +14,13 @@
    limitations under the License.
  */
 
-import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
 import * as asn1js from "asn1js";
-import { Buffer } from "buffer";
 import { Certificate, dstszi2010 } from "jkurwa";
+import type { CmsContentInfo, CmsSignedData, CmsSignerIdentifier, NugetSignatureInspection, SignerCertificate, SigningCertificateDetails } from "../types/services/nugetSignatureInspector";
 import { ContentInfo, SignedData } from "pkijs";
+import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
+import { Buffer } from "buffer";
 import { sha256Base64Url } from "./managedIdentitySubject";
-import type { CmsSignerIdentifier, CmsSignedData, CmsContentInfo, SignerCertificate, SigningCertificateDetails, NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
 
 function normalizeSerialNumber(value: CmsSignerIdentifier["value"] extends infer SignerValue
   ? SignerValue extends { serialNumber?: infer SerialNumber }

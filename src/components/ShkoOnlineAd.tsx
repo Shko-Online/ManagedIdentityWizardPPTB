@@ -14,8 +14,8 @@
    limitations under the License.
  */
 
-import type { FC } from 'react';
 import { Card, CardHeader, Image } from '@fluentui/react-components';
+import type { FC } from 'react';
 import MailToShkoOnline from './MailToShkoOnline';
 import shkoOnline from '../images/ShkoOnline92x32.svg';
 import useShkoOnlineAdStyles from '../styles/ShkoOnlineAd';

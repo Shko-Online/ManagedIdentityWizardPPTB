@@ -15,9 +15,9 @@
  */
 
 import { Link, Text } from "@fluentui/react-components";
+import ToolboxAPIContext from "../context/ToolboxAPIContext";
 // import encodeForMailto from "../utils/encodeForMailto";
 import { useContext } from "react";
-import ToolboxAPIContext from "../context/ToolboxAPIContext";
 
 const MailToShkoOnline: React.FC = () => {
   const toolboxAPI = useContext(ToolboxAPIContext);

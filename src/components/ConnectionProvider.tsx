@@ -22,9 +22,9 @@ import {
   useEffect,
   useState,
 } from "react";
-import ToolboxAPIContext from "../context/ToolboxAPIContext";
 import { ConnectionContext } from "../context/ConnectionContext";
 import { LogsContext } from "../context/LogsContext";
+import ToolboxAPIContext from "../context/ToolboxAPIContext";
 
 const ConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const { addLog } = useContext(LogsContext);
@@ -51,7 +51,7 @@ const ConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [toolboxAPI]);
+  }, [toolboxAPI, addLog]);
 
   // Handle platform events
   const handleEvent = useCallback(
@@ -77,7 +77,7 @@ const ConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
     return () => {
       toolboxAPI.events.off(handleEvent);
     };
-  }, [toolboxAPI, refreshConnection]);
+  }, [toolboxAPI, handleEvent, refreshConnection]);
 
   return (
     <ConnectionContext.Provider
