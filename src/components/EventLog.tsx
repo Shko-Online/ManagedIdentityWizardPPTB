@@ -72,6 +72,7 @@ export const EventLog: React.FC = () => {
             </TableHeader>
             <TableBody>
               {logs.map((log, index) => (
+                // eslint-disable-next-line @eslint-react/no-array-index-key
                 <LogTableRow key={index} log={log} />
               ))}
             </TableBody>

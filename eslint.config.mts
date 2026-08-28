@@ -1,26 +1,40 @@
-import tseslint from "typescript-eslint";
-import pluginReact from "eslint-plugin-react";
-import reactHooks from 'eslint-plugin-react-hooks';
 import { defineConfig, globalIgnores } from "eslint/config";
+import eslintReact from "@eslint-react/eslint-plugin";
+import eslintJs from "@eslint/js";
+import reactHooks from 'eslint-plugin-react-hooks';
+import tseslint from "typescript-eslint";
 
 export default defineConfig([
   globalIgnores([
     "node_modules",
     "dist",
   ]),
-  {
-    settings: {
-      react: {
-        // "detect" crashes on eslint-plugin-react 7.37.5 + ESLint 10 (context.getFilename removed)
-        version: "18.3.1",
+   {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    // Extend recommended rule sets from:
+    // 1. ESLint JS's recommended rules
+    // 2. TypeScript ESLint recommended rules
+    // 3. ESLint React's recommended-typescript rules
+    extends: [
+      eslintJs.configs.recommended,
+      tseslint.configs.recommended,
+      eslintReact.configs["recommended-typescript"],
+    ],
+    // Configure language/parsing options
+    languageOptions: {
+      // Use TypeScript ESLint parser for TypeScript files
+      parser: tseslint.parser,
+      parserOptions: {
+        // Enable project service for better TypeScript integration
+        projectService: true,
+        tsconfigRootDir: (import.meta as any).dirname,
       },
     },
-  },
-  tseslint.configs.recommended,
-  {
-    // Only apply React-specific configs to source files, not to config files like this one
-    files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-    ...pluginReact.configs.flat.recommended,
+    // Custom rule overrides (modify rule levels or disable rules)
+    rules: {
+       "sort-imports": "error",
+       "@eslint-react/set-state-in-effect": "off" // Need to figure out better code pattern for this, but for now, we will disable this rule to avoid false positives.
+    },
   },
   {
     files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
@@ -28,12 +42,8 @@ export default defineConfig([
   },
   {
     files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-    ...pluginReact.configs.flat['jsx-runtime'],
-  },
-  {
-    files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     ignores: ["node_modules", "dist"],
-    plugins: { "tseslint": tseslint.plugin, pluginReact },
+    plugins: { "tseslint": tseslint.plugin },
     languageOptions: {
       parserOptions: {
         ecmaFeatures: {
@@ -42,7 +52,6 @@ export default defineConfig([
       }
     },
     rules: {
-      "sort-imports": "error",
       "react-hooks/set-state-in-effect": 'off' // Need to figure out better code pattern for this, but for now, we will disable this rule to avoid false positives.
     },
   },

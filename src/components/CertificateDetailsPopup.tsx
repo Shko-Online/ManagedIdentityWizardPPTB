@@ -82,6 +82,7 @@ export function CertificateDetailsPopup({ certificate, onClose }: CertificateDet
 
                 return (
                   <button
+                    // eslint-disable-next-line @eslint-react/no-array-index-key
                     key={`${chainCertificate.serialNumber}-${index}`}
                     className={isSelected ? `${styles.chainItem} ${styles.selectedChainItem}` : styles.chainItem}
                     type="button"
@@ -116,6 +117,7 @@ export function CertificateDetailsPopup({ certificate, onClose }: CertificateDet
                   <th className={styles.groupName} scope="rowgroup" colSpan={2} title={selectedCertificate.issuerDistinguishedName}>Issuer</th>
                 </tr>
                 {issuerAttributes.map((attribute, index) => (
+                  // eslint-disable-next-line @eslint-react/no-array-index-key
                   <tr key={`issuer-${attribute.name}-${index}`}>
                     <th className={styles.attributeName} scope="row">{attribute.name}</th>
                     <td className={styles.fieldValue} title={attribute.value}>{attribute.value}</td>
@@ -125,6 +127,7 @@ export function CertificateDetailsPopup({ certificate, onClose }: CertificateDet
                   <th className={styles.groupName} scope="rowgroup" colSpan={2} title={selectedCertificate.subjectDistinguishedName}>Subject</th>
                 </tr>
                 {subjectAttributes.map((attribute, index) => (
+                  // eslint-disable-next-line @eslint-react/no-array-index-key
                   <tr key={`subject-${attribute.name}-${index}`}>
                     <th className={styles.attributeName} scope="row">{attribute.name}</th>
                     <td className={styles.fieldValue} title={attribute.value}>{attribute.value}</td>

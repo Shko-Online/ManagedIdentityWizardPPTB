@@ -176,7 +176,7 @@ function getSignerCertificate(signatureBytes: Uint8Array): SignerCertificate {
     } catch (pkiJsError) {
       throw new Error(
         `CMS parsing failed with jkurwa (${(jkurwaError as Error).message}) ` +
-          `and PKI.js (${(pkiJsError as Error).message}).`,
+          `and PKI.js (${(pkiJsError as Error).message}).`, { cause: pkiJsError },
       );
     }
   }
@@ -284,7 +284,7 @@ export async function inspectNugetSignature(
       certificate: await inspectCmsSignature(signatureBytes),
     };
   } catch (error) {
-    throw new Error(`Unable to inspect the NuGet package signature: ${(error as Error).message}`);
+    throw new Error(`Unable to inspect the NuGet package signature: ${(error as Error).message}`, { cause: error });
   } finally {
     await zipReader.close();
   }

@@ -77,6 +77,6 @@ export async function inspectPluginAssemblySignature(
       certificate: await inspectCmsSignature(signature),
     };
   } catch (error) {
-    throw new Error(`Unable to inspect the plugin assembly signature: ${(error as Error).message}`);
+    throw new Error(`Unable to inspect the plugin assembly signature: ${(error as Error).message}`, { cause: error });
   }
 }
