@@ -33,8 +33,7 @@
     "preview": "vite preview",
     "finalize-package": "npm shrinkwrap",
     "validate": "pptb-validate",
-    "version-stable": "npm version patch --no-git-tag-version",
-    "publish-package": "npm run build && npm run version-stable && npm publish --access public"
+    "release": "semantic-release"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.72.7",
@@ -49,9 +48,14 @@
   },
   "devDependencies": {
     "@pptb/types": "^1.2.5",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "semantic-release": "^25.0.9",
     "typescript": "^5.6.3",
     "vite": "^7.1.11"
   },

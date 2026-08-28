@@ -20,58 +20,7 @@ import { Buffer } from "buffer";
 import { Certificate, dstszi2010 } from "jkurwa";
 import { ContentInfo, SignedData } from "pkijs";
 import { sha256Base64Url } from "./managedIdentitySubject";
-
-interface CmsSignerIdentifier {
-  type?: string;
-  value?: {
-    serialNumber?: { toString(radix?: number): string } | string | number;
-  };
-}
-
-interface CmsSignerInfo {
-  sid?: CmsSignerIdentifier;
-}
-
-interface CmsSignedData {
-  certificate?: unknown[];
-  signerInfos?: CmsSignerInfo[];
-}
-
-interface CmsContentInfo {
-  contentType?: string;
-  content?: CmsSignedData;
-}
-
-export interface SigningCertificateDetails {
-  issuerDistinguishedName: string;
-  subjectDistinguishedName: string;
-  serialNumber: string;
-  validFrom: string;
-  validTo: string;
-  fingerprint: string;
-  isSelfSigned: boolean;
-  der: Uint8Array;
-  chain: CertificateChainEntry[];
-}
-
-export interface CertificateChainEntry {
-  subjectDistinguishedName: string;
-  issuerDistinguishedName: string;
-  serialNumber: string;
-  validFrom: string;
-  validTo: string;
-  fingerprint: string;
-  isSigner: boolean;
-}
-
-export type NugetSignatureInspection =
-  | { signatureStatus: "unsigned" }
-  | { signatureStatus: "signed"; certificate: SigningCertificateDetails };
-
-interface SignerCertificate {
-  certificate: Certificate;
-  embeddedCertificates: Certificate[];
-}
+import type { CmsSignerIdentifier, CmsSignedData, CmsContentInfo, SignerCertificate, SigningCertificateDetails, NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
 
 function normalizeSerialNumber(value: CmsSignerIdentifier["value"] extends infer SignerValue
   ? SignerValue extends { serialNumber?: infer SerialNumber }

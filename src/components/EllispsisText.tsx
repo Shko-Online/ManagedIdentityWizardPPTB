@@ -14,5 +14,8 @@
    limitations under the License.
  */
 
-declare module '*.css';
-declare module '*.svg';
+function EllipsisText({ value, className }: { value: string; className: string }) {
+  return <span className={className} title={value}>{value}</span>;
+}
+
+export default EllipsisText;

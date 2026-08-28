@@ -14,5 +14,10 @@
    limitations under the License.
  */
 
-declare module '*.css';
-declare module '*.svg';
+export default function encodeForMailto(input: string) {
+    return input.replace(/ /g, "%20")
+                .replace(/\n/g, "%0A")
+                .replace(/\r/g, "")
+                .replace(/&/g, "%26")
+                .replace(/\?/g, "%3F");
+}

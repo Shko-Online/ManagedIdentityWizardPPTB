@@ -15,41 +15,25 @@
  */
 
 import React, { useContext } from "react";
-import { LogEntry, LogsContext } from "../context/LogsContext";
+import { LogsContext } from "../context/LogsContext";
+import LogTableRow from "./LogTableRow";
 import {
   Card,
   CardHeader,
   Button,
   Table,
   TableBody,
-  TableCell,
   TableRow,
   TableHeader,
   TableHeaderCell,
-  TableCellLayout,
   Text,
 } from "@fluentui/react-components";
 import { Dismiss24Regular } from "@fluentui/react-icons";
-import useStyles from "../styles/EventLog";
+import useEventLogStyles from "../styles/EventLog";
 
 export const EventLog: React.FC = () => {
-  const styles = useStyles();
+  const styles = useEventLogStyles();
   const { logs, clearLogs } = useContext(LogsContext);
-
-  const getTypeStyle = (type: LogEntry["type"]) => {
-    switch (type) {
-      case "success":
-        return styles.successText;
-      case "info":
-        return styles.infoText;
-      case "warning":
-        return styles.warningText;
-      case "error":
-        return styles.errorText;
-      default:
-        return "";
-    }
-  };
 
   return (
     <Card className={styles.card}>
@@ -88,23 +72,7 @@ export const EventLog: React.FC = () => {
             </TableHeader>
             <TableBody>
               {logs.map((log, index) => (
-                <TableRow key={index}>
-                  <TableCell className={styles.timestampCell}>
-                    <TableCellLayout>
-                      {log.timestamp.toLocaleTimeString()}
-                    </TableCellLayout>
-                  </TableCell>
-                  <TableCell className={styles.typeCell}>
-                    <TableCellLayout>
-                      <Text className={getTypeStyle(log.type)}>
-                        {log.type.toUpperCase()}
-                      </Text>
-                    </TableCellLayout>
-                  </TableCell>
-                  <TableCell>
-                    <TableCellLayout>{log.message}</TableCellLayout>
-                  </TableCell>
-                </TableRow>
+                <LogTableRow key={index} log={log} />
               ))}
             </TableBody>
           </Table>

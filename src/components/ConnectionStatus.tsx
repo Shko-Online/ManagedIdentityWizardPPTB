@@ -29,6 +29,7 @@ import {
   CheckmarkCircle24Regular,
   Warning24Regular,
 } from "@fluentui/react-icons";
+import getEnvironmentColor from "../utils/getEnvironmentColor";
 
 export const ConnectionStatus: React.FC = () => {
   const styles = useStyles();
@@ -68,7 +69,8 @@ export const ConnectionStatus: React.FC = () => {
               <Text weight="semibold">No active connection</Text>
               <br />
               <Text>
-                Please connect to a Dataverse environment to use this tool to read plug-in packages. Otherwise only offline features will be available.
+                Please connect to a Dataverse environment to use this tool to read plug-in packages. 
+                Otherwise only offline features will be available.
               </Text>
             </div>
           </div>
@@ -76,19 +78,6 @@ export const ConnectionStatus: React.FC = () => {
       </Card>
     );
   }
-
-  const getEnvironmentColor = (
-    env: string
-  ): "success" | "danger" | "warning" | "important" => {
-    switch (env.toLowerCase()) {
-      case "production":
-        return "danger";
-      case "sandbox":
-        return "warning";
-      default:
-        return "success";
-    }
-  };
 
   return (
     <Card className={styles.card}>

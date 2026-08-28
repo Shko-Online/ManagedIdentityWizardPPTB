@@ -14,50 +14,21 @@
    limitations under the License.
  */
 
-import React, { useCallback, useEffect, useContext } from 'react';
-import { ConnectionContext } from './context/ConnectionContext';
+import React, {  useEffect, useContext } from 'react';
 import { LogsContext } from './context/LogsContext';
 import { FluentProvider, webLightTheme, webDarkTheme, Title3, Text } from '@fluentui/react-components';
 import useStyles from './styles/App';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { EventLog } from './components/EventLog';
 import { PluginPackageInspector } from './components/PluginPackageInspector';
-import { useToolboxEvents } from './hooks/useToolboxAPI';
 import ToolboxAPIContext from './context/ToolboxAPIContext';
 import { ShkoOnlineAd } from './components/ShkoOnlineAd';
 
-
 function App() {
-    const { refreshConnection } = useContext(ConnectionContext);
     const toolboxAPI = useContext(ToolboxAPIContext);
     const { addLog } = useContext(LogsContext);
     const [theme, setTheme] = React.useState<'light' | 'dark'>('light');
     const styles = useStyles();
-
-    // Handle platform events
-    const handleEvent = useCallback(
-        (event: string, _data: any) => {
-            switch (event) {
-                case 'connection:updated':
-                case 'connection:created':
-                    refreshConnection();
-                    break;
-
-                case 'connection:deleted':
-                    refreshConnection();
-                    break;
-
-                case 'terminal:output':
-                case 'terminal:command:completed':
-                case 'terminal:error':
-                    // Terminal events handled by dedicated components
-                    break;
-            }
-        },
-        [refreshConnection]
-    );
-
-    useToolboxEvents(handleEvent);
 
     // Add initial log (run only once on mount)
     useEffect(() => {
@@ -66,7 +37,20 @@ function App() {
 
     // Get theme from Toolbox API
     useEffect(() => {
-        const getTheme = async () => {
+        if(!toolboxAPI) {
+            return;
+        }
+
+        const handleThemeChange = (_: unknown, payload: ToolBoxAPI.ToolBoxEventPayload) => {
+            const theme = (payload.data as { theme?: string }).theme;
+            if(theme) {
+                setTheme(theme === 'dark' ? 'dark' : 'light');  
+            }
+        };
+
+        toolboxAPI.events.on(handleThemeChange);
+
+        const syncTheme = async () => {
             try {
                 const currentTheme = await toolboxAPI?.utils.getCurrentTheme();
                 setTheme(currentTheme === 'dark' ? 'dark' : 'light');
@@ -74,8 +58,12 @@ function App() {
                 console.error('Error getting theme:', error);
             }
         };
-        getTheme();
-    }, []);
+        syncTheme();
+
+        return () => {
+            toolboxAPI.events.off(handleThemeChange);
+        };
+    }, [toolboxAPI]);
 
     return (
         <FluentProvider theme={theme === 'dark' ? webDarkTheme : webLightTheme} className={styles.root}>

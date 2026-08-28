@@ -21,13 +21,9 @@ import {
 } from "@fluentui/react-components";
 import useCertificateDetailsStyles from "../styles/CertificateDetailsPopup";
 import { Certificate24Regular, Dismiss24Regular } from "@fluentui/react-icons";
-import type { CertificateChainEntry, SigningCertificateDetails } from "../services/nugetSignatureInspector";
+import type { CertificateChainEntry } from "../types/services/nugetSignatureInspector";
 import { getCommonName, parseDistinguishedName } from "../utils/distinguishedName";
-
-interface CertificateDetailsPopupProps {
-  certificate: SigningCertificateDetails;
-  onClose: () => void;
-}
+import type { CertificateDetailsPopupProps } from "../types/components/CertificateDetailsPopup";
 
 function getCertificateLabel(certificate: CertificateChainEntry): string {
   return getCommonName(certificate.subjectDistinguishedName)

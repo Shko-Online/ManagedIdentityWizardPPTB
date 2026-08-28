@@ -16,34 +16,29 @@
 
 import { makeStyles, tokens } from "@fluentui/react-components";
 
-const useEventLogStyles = makeStyles({
-  card: {
-    maxWidth: "100%",
-    width: "100%",
-    display: "block",
-    position: "relative",
-  },
-  tableContainer: {
-    marginTop: tokens.spacingVerticalM,
-    paddingLeft: tokens.spacingHorizontalM,
-    paddingRight: tokens.spacingHorizontalM,
-    paddingBottom: tokens.spacingVerticalM,
-  },
-  table: {
-    minHeight: "0",
-  },
-  emptyState: {
-    padding: tokens.spacingVerticalXXL,
-    textAlign: "center",
-    color: tokens.colorNeutralForeground3,
-    fontStyle: "italic",
-  },
+const useLogTableRowStyles = makeStyles({
   timestampCell: {
     width: "140px",
   },
   typeCell: {
     width: "80px",
   },
+  successText: {
+    color: tokens.colorPaletteGreenForeground2,
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  infoText: {
+    color: tokens.colorPaletteBlueForeground2,
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  warningText: {
+    color: tokens.colorPaletteYellowForeground2,
+    fontWeight: tokens.fontWeightSemibold,
+  },
+  errorText: {
+    color: tokens.colorPaletteRedForeground2,
+    fontWeight: tokens.fontWeightSemibold,
+  },
 });
 
-export default useEventLogStyles;
+export default useLogTableRowStyles;

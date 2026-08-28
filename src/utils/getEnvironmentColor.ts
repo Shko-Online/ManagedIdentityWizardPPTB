@@ -14,5 +14,15 @@
    limitations under the License.
  */
 
-declare module '*.css';
-declare module '*.svg';
+const getEnvironmentColor = (env: string): "success" | "danger" | "warning" => {
+  switch (env.toLowerCase()) {
+    case "production":
+      return "danger";
+    case "sandbox":
+      return "warning";
+    default:
+      return "success";
+  }
+};
+
+export default getEnvironmentColor;

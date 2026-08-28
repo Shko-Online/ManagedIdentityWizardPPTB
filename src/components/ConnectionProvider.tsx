@@ -14,36 +14,78 @@
    limitations under the License.
  */
 
-import { FC, ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import {
+  FC,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import ToolboxAPIContext from "../context/ToolboxAPIContext";
 import { ConnectionContext } from "../context/ConnectionContext";
+import { LogsContext } from "../context/LogsContext";
 
 const ConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const [connection, setConnection] =
-    useState<ToolBoxAPI.Connection | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { addLog } = useContext(LogsContext);
   const toolboxAPI = useContext(ToolboxAPIContext);
+
+  const [connection, setConnection] = useState<ToolBoxAPI.Connection | null>(
+    null,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+
   const refreshConnection = useCallback(async () => {
     if (!toolboxAPI) {
       return;
     }
     try {
-      const conn = await toolboxAPI!.connections.getActiveConnection();
+      const conn = await toolboxAPI.connections.getActiveConnection();
       setConnection(conn);
     } catch (error) {
+      addLog(
+        "Error refreshing connection: " + (error as Error).message,
+        "error",
+      );
       console.error("Error refreshing connection:", error);
     } finally {
       setIsLoading(false);
     }
   }, [toolboxAPI]);
 
-  useEffect(() => {
-    refreshConnection();
-  }, [refreshConnection]);
+  // Handle platform events
+  const handleEvent = useCallback(
+    (_:unknown, data: ToolBoxAPI.ToolBoxEventPayload) => {
+      switch (data.event) {
+        case "connection:updated":
+        case "connection:created":
+        case "connection:deleted":
+          refreshConnection();
+          break;
+      }
+    },
+    [refreshConnection],
+  );
 
-  return <ConnectionContext.Provider
-    value={{ connection, isLoading, refreshConnection }}
-  >{children}</ConnectionContext.Provider>;
+  useEffect(() => {
+    if (!toolboxAPI) {
+      return;
+    }
+
+    toolboxAPI.events.on(handleEvent);
+    refreshConnection();
+    return () => {
+      toolboxAPI.events.off(handleEvent);
+    };
+  }, [toolboxAPI, refreshConnection]);
+
+  return (
+    <ConnectionContext.Provider
+      value={{ connection, isLoading, refreshConnection }}
+    >
+      {children}
+    </ConnectionContext.Provider>
+  );
 };
 
 export default ConnectionProvider;

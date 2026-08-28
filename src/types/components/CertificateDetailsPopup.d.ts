@@ -14,5 +14,9 @@
    limitations under the License.
  */
 
-declare module '*.css';
-declare module '*.svg';
+import type {  SigningCertificateDetails } from "../services/nugetSignatureInspector";
+
+export interface CertificateDetailsPopupProps {
+  certificate: SigningCertificateDetails;
+  onClose: () => void;
+}

@@ -15,38 +15,40 @@
  */
 
 import { Link, Text } from "@fluentui/react-components";
-
-function EncodeForMailto( input:string)
-        {
-            return input.replace(" ", "%20")
-                        .replace("\n", "%0A")
-                        .replace("\r", "")
-                        .replace("&", "%26")
-                        .replace("?", "%3F");
-        }
+// import encodeForMailto from "../utils/encodeForMailto";
+import { useContext } from "react";
+import ToolboxAPIContext from "../context/ToolboxAPIContext";
 
 const MailToShkoOnline: React.FC = () => {
-    const subject = "Thanks for Managed Identity Wizard PPTB!";
-    const body = `Hi,
+  const toolboxAPI = useContext(ToolboxAPIContext);
+  /* const subject = "Thanks for Managed Identity Wizard PPTB!";
+  const body = `Hi,
 thanks for this amazing tool!
 
 I am interested in learning more about your products and services.
 
 Best regards,
-[Your Name]`;
-    return (
-        <Text align="center">
-            Enjoying this free tool from Shko Online?<br />
-            Contact us at{' '}
-            <Link 
-                rel="noopener"
-                target="_top"
-                href={`mailto:sales@shko.online?subject=${EncodeForMailto(subject)}&body=${EncodeForMailto(body)}`}
-            >
-            sales@shko.online
-            </Link>
-        </Text>
-    );
+[Your Name]`; */
+  const openMailtoLink = () => {
+    if (!toolboxAPI) {
+      return;
+    }
+
+    // const mailtoLink = `mailto:sales@shko.online?subject=${encodeForMailto(subject)}&body=${encodeForMailto(body)}`;
+    if (toolboxAPI) {
+      toolboxAPI.utils.copyToClipboard('sales@shko.online');
+    }
+  };
+  return (
+    <Text align="center">
+      Enjoying this free tool from Shko Online?
+      <br />
+      Contact us at{" "}
+      <Link rel="noopener" target="_top" href="#" onClick={openMailtoLink}>
+        sales@shko.online
+      </Link>
+    </Text>
+  );
 };
 
 export default MailToShkoOnline;
