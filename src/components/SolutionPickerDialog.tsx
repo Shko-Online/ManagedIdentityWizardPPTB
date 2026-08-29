@@ -59,6 +59,8 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
     useState(selectedSolutionId);
   const [sortKey, setSortKey] = useState<SolutionSortKey>("uniqueName");
   const [sortDescending, setSortDescending] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const normalizedFilter = filter.trim().toLocaleLowerCase();
   const visibleSolutions = solutions
     .filter(
@@ -69,6 +71,8 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
           solution.version,
           solution.isManaged ? "managed" : "unmanaged",
           solution.publisher,
+          String(solution.pluginCount),
+          String(solution.pluginPackageCount),
           formatSolutionDate(solution.createdOn),
           formatSolutionDate(solution.modifiedOn),
         ].some((value) => value.toLocaleLowerCase().includes(normalizedFilter)),
@@ -80,27 +84,34 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
           ? left.isManaged
             ? "managed"
             : "unmanaged"
-          : left[sortKey];
+          : String(left[sortKey]);
       const rightValue =
         sortKey === "isManaged"
           ? right.isManaged
             ? "managed"
             : "unmanaged"
-          : right[sortKey];
+          : String(right[sortKey]);
       const comparison = leftValue.localeCompare(rightValue, undefined, {
         numeric: true,
         sensitivity: "base",
       });
       return sortDescending ? -comparison : comparison;
     });
+  const pageCount = Math.max(1, Math.ceil(visibleSolutions.length / pageSize));
+  const pagedSolutions = visibleSolutions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
   const sortSolutionsBy = (nextSortKey: SolutionSortKey) => {
     if (sortKey === nextSortKey) {
       setSortDescending((descending) => !descending);
+      setCurrentPage(1);
       return;
     }
 
     setSortKey(nextSortKey);
     setSortDescending(false);
+    setCurrentPage(1);
   };
   const sortIcon = (columnSortKey: SolutionSortKey) =>
     sortKey === columnSortKey ? (
@@ -148,7 +159,10 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
             aria-label="Filter solutions"
             placeholder="Filter solutions"
             value={filter}
-            onChange={(_event, data) => setFilter(data.value)}
+            onChange={(_event, data) => {
+              setFilter(data.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
         <div className={styles.tableContainer}>
@@ -162,6 +176,8 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                     "version",
                     "publisher",
                     "isManaged",
+                    "pluginCount",
+                    "pluginPackageCount",
                     "createdOn",
                     "modifiedOn",
                   ] as SolutionSortKey[]
@@ -173,6 +189,8 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                     publisher: "Publisher",
                     createdOn: "Created",
                     modifiedOn: "Modified",
+                    pluginCount: "Plugins",
+                    pluginPackageCount: "Packages",
                   };
                   return (
                     <TableHeaderCell
@@ -184,6 +202,9 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                             ? styles.createdColumn
                             : columnSortKey === "modifiedOn"
                               ? styles.modifiedColumn
+                                : columnSortKey === "pluginCount" ||
+                                    columnSortKey === "pluginPackageCount"
+                                  ? styles.countColumn
                               : undefined
                       }
                     >
@@ -200,7 +221,7 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleSolutions.map((solution) => (
+              {pagedSolutions.map((solution) => (
                 <TableRow
                   key={solution.id}
                   className={styles.selectableRow}
@@ -232,7 +253,12 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                       value={solution.uniqueName}
                     />
                   </TableCell>
-                  <TableCell>{solution.version}</TableCell>
+                  <TableCell>
+                    <EllipsisText
+                      className={styles.ellipsis}
+                      value={solution.version}
+                    />
+                  </TableCell>
 
                   <TableCell className={styles.publisherColumn}>
                     <EllipsisText
@@ -249,6 +275,12 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                       {solution.isManaged ? "M" : "U"}
                     </Badge>
                   </TableCell>
+                  <TableCell className={styles.countColumn}>
+                    {solution.pluginCount}
+                  </TableCell>
+                  <TableCell className={styles.countColumn}>
+                    {solution.pluginPackageCount}
+                  </TableCell>
                   <TableCell className={styles.createdColumn}>
                     {formatSolutionDate(solution.createdOn)}
                   </TableCell>
@@ -262,6 +294,27 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
           {visibleSolutions.length === 0 && (
             <Text className={styles.muted}>No solutions match the filter.</Text>
           )}
+        </div>
+        <div className={styles.pagination}>
+          <Text className={styles.muted}>
+            Page {currentPage} of {pageCount}
+          </Text>
+          <Button
+            appearance="subtle"
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <Button
+            appearance="subtle"
+            onClick={() =>
+              setCurrentPage((page) => Math.min(pageCount, page + 1))
+            }
+            disabled={currentPage === pageCount}
+          >
+            Next
+          </Button>
         </div>
       </section>
     </div>

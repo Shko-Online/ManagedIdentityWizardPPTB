@@ -62,6 +62,14 @@ const useStyles = makeStyles({
     overflow: "auto",
     padding: tokens.spacingVerticalM,
   },
+  pagination: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: tokens.spacingHorizontalS,
+    padding: tokens.spacingVerticalM,
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
   table: {
     minWidth: "980px",
     tableLayout: "fixed",
@@ -91,6 +99,10 @@ const useStyles = makeStyles({
   },
   publisherColumn: {
     width: "22%",
+  },
+  countColumn: {
+    width: "8%",
+    textAlign: "center",
   },
   createdColumn: {
     width: "14%",

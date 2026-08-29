@@ -52,7 +52,7 @@ export function getCertificateIdentity(distinguishedName: string): string {
 }
 
 export type InspectedComponentType = "assembly" | "package";
-export type SolutionSortKey = "uniqueName" | "version" | "isManaged" | "publisher" | "createdOn" | "modifiedOn";
+export type SolutionSortKey = "uniqueName" | "version" | "isManaged" | "publisher" | "createdOn" | "modifiedOn" | "pluginCount" | "pluginPackageCount";
 
 export function getSignedLabel(componentType: InspectedComponentType, isSelfSigned: boolean): string {
   const certificateType = isSelfSigned ? "Self-Signed" : "Issuer-Signed";

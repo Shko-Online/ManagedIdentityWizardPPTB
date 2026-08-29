@@ -77,24 +77,6 @@ const useStyles = makeStyles({
     fontFamily: tokens.fontFamilyBase,
     fontSize: tokens.fontSizeBase300,
   },
-  tabs: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: tokens.spacingHorizontalXS,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-  },
-  tabButtons: {
-    display: "flex",
-    gap: tokens.spacingHorizontalXS,
-  },
-  nameFilter: {
-    width: "280px",
-    maxWidth: "45%",
-  },
-  activeTab: {
-    borderBottomColor: tokens.colorBrandStroke1,
-  },
   pagination: {
     display: "flex",
     alignItems: "center",
@@ -117,6 +99,11 @@ const useStyles = makeStyles({
     "& th": {
       textAlign: "center",
     },
+  },
+  sortButton: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
   },
   nameColumn: {
     width: "14%",

@@ -17,17 +17,13 @@
 import {
   ArrowSync24Regular,
   Certificate24Regular,
-  CheckmarkCircle24Regular,
   Copy24Regular,
   Dismiss24Regular,
-  DocumentSearch24Regular,
   FolderOpen24Regular,
   Info24Regular,
   MoreHorizontal24Regular,
-  Save24Regular,
   Settings24Regular,
 } from "@fluentui/react-icons";
-
 import {
   Badge,
   Button,
@@ -42,26 +38,16 @@ import {
   MenuPopover,
   MenuTrigger,
   Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
   Text,
 } from "@fluentui/react-components";
-
 import {
   type InspectedComponentType,
   createNameMatcher,
-  formatSolutionDate,
-  formatSolutionDateTime,
   getAssemblyExportFileName,
   getCertificateIdentity,
   getExportFileName,
   getSignedLabel,
 } from "../services/pluginPackageInspector";
-
 import {
   type ManagedIdentityCloud,
   type ManagedIdentitySubjectResult,
@@ -90,11 +76,29 @@ import EllipsisText from "./EllispsisText";
 import { LogsContext } from "../context/LogsContext";
 import MenuRootContext from "../context/MenuRootContext";
 import { NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
+import { PluginAssemblyTable } from "./PluginAssemblyTable";
+import { PluginComponentTabs } from "./PluginComponentTabs";
+import { PluginPackageTable } from "./PluginPackageTable";
 import { SolutionPickerDialog } from "./SolutionPickerDialog";
 import ToolboxAPIContext from "../context/ToolboxAPIContext";
 import { inspectNugetSignature } from "../services/nugetSignatureInspector";
 import { inspectPluginAssemblySignature } from "../services/pluginAssemblySignatureInspector";
 import useStyles from "../styles/PluginPackageInspector";
+
+type PackageSortKey =
+  | "name"
+  | "uniqueName"
+  | "version"
+  | "packageName"
+  | "createdOn"
+  | "modifiedOn"
+  | "isManaged";
+type AssemblySortKey =
+  | "name"
+  | "version"
+  | "createdOn"
+  | "modifiedOn"
+  | "isManaged";
 
 export const PluginPackageInspector: React.FC = () => {
   const styles = useStyles();
@@ -106,6 +110,12 @@ export const PluginPackageInspector: React.FC = () => {
   );
   const [currentPage, setCurrentPage] = useState(1);
   const [nameFilter, setNameFilter] = useState("");
+  const [packageSortKey, setPackageSortKey] =
+    useState<PackageSortKey>("createdOn");
+  const [packageSortDescending, setPackageSortDescending] = useState(true);
+  const [assemblySortKey, setAssemblySortKey] =
+    useState<AssemblySortKey>("createdOn");
+  const [assemblySortDescending, setAssemblySortDescending] = useState(true);
   const [solutions, setSolutions] = useState<SolutionRecord[]>([]);
   const [isSolutionPickerOpen, setIsSolutionPickerOpen] = useState(false);
   const [componentTypes, setComponentTypes] =
@@ -149,13 +159,6 @@ export const PluginPackageInspector: React.FC = () => {
   const dataverseAPI = useContext(DataverseAPIContext);
   const toolboxAPI = useContext(ToolboxAPIContext);
 
-  console.log(
-    "PluginPackageInspector render",
-    connection,
-    dataverseAPI,
-    toolboxAPI,
-  );
-
   const loadSolutions = useCallback(async () => {
     if (!connection || !dataverseAPI) {
       return;
@@ -182,7 +185,6 @@ export const PluginPackageInspector: React.FC = () => {
       setSolutions([]);
       setComponentTypes(null);
       setSelectedSolutionId("");
-      addLog("No connection available. Solutions cannot be loaded.", "warning");
       return;
     }
 
@@ -208,7 +210,7 @@ export const PluginPackageInspector: React.FC = () => {
           getSolutionComponentObjectIds(
             dataverseAPI,
             selectedSolutionId,
-            componentTypes.plugin,
+            componentTypes.pluginAssembly,
           ),
           getSolutionComponentObjectIds(
             dataverseAPI,
@@ -604,14 +606,70 @@ export const PluginPackageInspector: React.FC = () => {
   const visibleAssemblies = solutionAssemblies.filter((assemblyRecord) =>
     nameMatcher(assemblyRecord.name),
   );
+  const sortedPackages = visiblePackages.slice().sort((left, right) => {
+    const leftValue =
+      packageSortKey === "isManaged"
+        ? left.isManaged
+          ? "managed"
+          : "unmanaged"
+        : left[packageSortKey] ?? "";
+    const rightValue =
+      packageSortKey === "isManaged"
+        ? right.isManaged
+          ? "managed"
+          : "unmanaged"
+        : right[packageSortKey] ?? "";
+    const comparison = leftValue.localeCompare(rightValue, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return packageSortDescending ? -comparison : comparison;
+  });
+  const sortedAssemblies = visibleAssemblies.slice().sort((left, right) => {
+    const leftValue =
+      assemblySortKey === "isManaged"
+        ? left.isManaged
+          ? "managed"
+          : "unmanaged"
+        : left[assemblySortKey];
+    const rightValue =
+      assemblySortKey === "isManaged"
+        ? right.isManaged
+          ? "managed"
+          : "unmanaged"
+        : right[assemblySortKey];
+    const comparison = leftValue.localeCompare(rightValue, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return assemblySortDescending ? -comparison : comparison;
+  });
+  const sortPackagesBy = (sortKey: PackageSortKey) => {
+    if (packageSortKey === sortKey) {
+      setPackageSortDescending((descending) => !descending);
+      return;
+    }
+
+    setPackageSortKey(sortKey);
+    setPackageSortDescending(false);
+  };
+  const sortAssembliesBy = (sortKey: AssemblySortKey) => {
+    if (assemblySortKey === sortKey) {
+      setAssemblySortDescending((descending) => !descending);
+      return;
+    }
+
+    setAssemblySortKey(sortKey);
+    setAssemblySortDescending(false);
+  };
   const activeRecordCount =
     activeTab === "packages"
-      ? visiblePackages.length
-      : visibleAssemblies.length;
+      ? sortedPackages.length
+      : sortedAssemblies.length;
   const pageCount = Math.max(1, Math.ceil(activeRecordCount / 10));
   const pageStart = (currentPage - 1) * 10;
-  const pagedPackages = visiblePackages.slice(pageStart, pageStart + 10);
-  const pagedAssemblies = visibleAssemblies.slice(pageStart, pageStart + 10);
+  const pagedPackages = sortedPackages.slice(pageStart, pageStart + 10);
+  const pagedAssemblies = sortedAssemblies.slice(pageStart, pageStart + 10);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -716,342 +774,47 @@ export const PluginPackageInspector: React.FC = () => {
 
         {(visiblePackages.length > 0 || visibleAssemblies.length > 0) && (
           <>
-            <div
-              className={styles.tabs}
-              role="tablist"
-              aria-label="Component type"
-            >
-              <div className={styles.tabButtons}>
-                <Button
-                  appearance="subtle"
-                  className={
-                    activeTab === "packages" ? styles.activeTab : undefined
-                  }
-                  role="tab"
-                  aria-selected={activeTab === "packages"}
-                  onClick={() => setActiveTab("packages")}
-                >
-                  Plugin packages ({visiblePackages.length})
-                </Button>
-                <Button
-                  appearance="subtle"
-                  className={
-                    activeTab === "assemblies" ? styles.activeTab : undefined
-                  }
-                  role="tab"
-                  aria-selected={activeTab === "assemblies"}
-                  onClick={() => setActiveTab("assemblies")}
-                >
-                  Plugin assemblies ({visibleAssemblies.length})
-                </Button>
-              </div>
-              <Input
-                className={styles.nameFilter}
-                aria-label="Filter component names"
-                value={nameFilter}
-                placeholder="Filter by name"
-                onChange={(_event, data) =>
-                  setNameFilter(data.value.replace(/\//g, ""))
-                }
-              />
-            </div>
+            <PluginComponentTabs
+              activeTab={activeTab}
+              packageCount={visiblePackages.length}
+              assemblyCount={visibleAssemblies.length}
+              filter={nameFilter}
+              onActiveTabChange={setActiveTab}
+              onFilterChange={setNameFilter}
+            />
 
             {activeTab === "packages" && (
-              <div className={styles.tableContainer}>
-                <Table
-                  className={styles.table}
-                  size="small"
-                  aria-label="Plugin packages"
-                >
-                  <TableHeader className={styles.tableHeader}>
-                    <TableRow>
-                      <TableHeaderCell className={styles.nameColumn}>
-                        Name
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.uniqueNameColumn}>
-                        Unique name
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.versionColumn}>
-                        Version
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.packageFileColumn}>
-                        Package file
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.createdColumn}>
-                        Created
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.modifiedColumn}>
-                        Modified
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.managedColumn}>
-                        Type
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.actionColumn}>
-                        Actions
-                      </TableHeaderCell>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagedPackages.map((packageRecord) => (
-                      <TableRow
-                        key={packageRecord.id}
-                        className={
-                          inspectedComponentId === packageRecord.id &&
-                          inspection
-                            ? styles.inspectedRow
-                            : undefined
-                        }
-                      >
-                        <TableCell className={styles.nameColumn}>
-                          <EllipsisText
-                            className={styles.ellipsis}
-                            value={packageRecord.name}
-                          />
-                        </TableCell>
-                        <TableCell className={styles.uniqueNameColumn}>
-                          <EllipsisText
-                            className={styles.ellipsis}
-                            value={packageRecord.uniqueName || "-"}
-                          />
-                        </TableCell>
-                        <TableCell className={styles.versionColumn}>
-                          <EllipsisText
-                            className={styles.ellipsis}
-                            value={packageRecord.version || "-"}
-                          />
-                        </TableCell>
-                        <TableCell className={styles.packageFileColumn}>
-                          <EllipsisText
-                            className={styles.ellipsis}
-                            value={
-                              packageRecord.packageName ?? "No package file"
-                            }
-                          />
-                        </TableCell>
-                        <TableCell
-                          className={styles.createdColumn}
-                          title={formatSolutionDateTime(packageRecord.createdOn)}
-                        >
-                          {formatSolutionDate(packageRecord.createdOn)}
-                        </TableCell>
-                        <TableCell
-                          className={styles.modifiedColumn}
-                          title={formatSolutionDateTime(packageRecord.modifiedOn)}
-                        >
-                          {formatSolutionDate(packageRecord.modifiedOn)}
-                        </TableCell>
-                        <TableCell className={styles.managedColumn}>
-                          <Badge
-                            appearance="tint"
-                            color={
-                              packageRecord.isManaged ? "brand" : "informative"
-                            }
-                            title={
-                              packageRecord.isManaged ? "Managed" : "Unmanaged"
-                            }
-                          >
-                            {packageRecord.isManaged ? "M" : "U"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className={styles.actionColumn}>
-                          <div className={styles.actionButtons}>
-                            <Button
-                              appearance="subtle"
-                              icon={
-                                inspectedComponentId === packageRecord.id &&
-                                inspection &&
-                                hoveredInspectId !== packageRecord.id ? (
-                                  <CheckmarkCircle24Regular
-                                    className={styles.inspectedIndicator}
-                                  />
-                                ) : (
-                                  <DocumentSearch24Regular />
-                                )
-                              }
-                              aria-label={
-                                inspectedComponentId === packageRecord.id &&
-                                inspection
-                                  ? `Inspect ${packageRecord.name} again`
-                                  : `Inspect ${packageRecord.name}`
-                              }
-                              title={
-                                inspectedComponentId === packageRecord.id &&
-                                inspection
-                                  ? "Inspect again"
-                                  : `Inspect ${packageRecord.name}`
-                              }
-                              onMouseEnter={() =>
-                                setHoveredInspectId(packageRecord.id)
-                              }
-                              onMouseLeave={() => setHoveredInspectId(null)}
-                              onClick={() => inspectPackage(packageRecord)}
-                              disabled={
-                                isInspectingPackageId !== null ||
-                                isExportingPackageId !== null
-                              }
-                            />
-                            <Button
-                              appearance="subtle"
-                              icon={<Save24Regular />}
-                              aria-label={`Export ${packageRecord.name}`}
-                              title={`Export ${packageRecord.name}`}
-                              onClick={() => exportPackage(packageRecord)}
-                              disabled={
-                                isInspectingPackageId !== null ||
-                                isExportingPackageId !== null
-                              }
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <PluginPackageTable
+                packages={pagedPackages}
+                inspectedComponentId={inspectedComponentId}
+                hasInspection={inspection !== null}
+                hoveredInspectId={hoveredInspectId}
+                isInspecting={isInspectingPackageId !== null}
+                isExporting={isExportingPackageId !== null}
+                sortKey={packageSortKey}
+                sortDescending={packageSortDescending}
+                onHoverInspect={setHoveredInspectId}
+                onInspect={inspectPackage}
+                onExport={exportPackage}
+                onSort={sortPackagesBy}
+              />
             )}
 
             {activeTab === "assemblies" && (
-              <div className={styles.tableContainer}>
-                <Table
-                  className={styles.table}
-                  size="small"
-                  aria-label="Plugin assemblies"
-                >
-                  <TableHeader className={styles.tableHeader}>
-                    <TableRow>
-                      <TableHeaderCell className={styles.assemblyNameColumn}>
-                        Name
-                      </TableHeaderCell>
-                      <TableHeaderCell
-                        className={styles.assemblyVersionColumn}
-                      >
-                        Version
-                      </TableHeaderCell>
-                      <TableHeaderCell
-                        className={styles.assemblyManagedColumn}
-                      >
-                        Type
-                      </TableHeaderCell>
-                      <TableHeaderCell
-                        className={styles.assemblyCreatedColumn}
-                      >
-                        Created
-                      </TableHeaderCell>
-                      <TableHeaderCell
-                        className={styles.assemblyModifiedColumn}
-                      >
-                        Modified
-                      </TableHeaderCell>
-                      <TableHeaderCell
-                        className={styles.assemblyActionColumn}
-                      >
-                        Actions
-                      </TableHeaderCell>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pagedAssemblies.map((assemblyRecord) => (
-                      <TableRow
-                        key={assemblyRecord.id}
-                        className={
-                          inspectedComponentId === assemblyRecord.id &&
-                          inspection
-                            ? styles.inspectedRow
-                            : undefined
-                        }
-                      >
-                        <TableCell className={styles.assemblyNameColumn}>
-                          <EllipsisText
-                            className={styles.ellipsis}
-                            value={assemblyRecord.name}
-                          />
-                        </TableCell>
-                        <TableCell className={styles.assemblyVersionColumn}>
-                          <EllipsisText
-                            className={styles.ellipsis}
-                            value={assemblyRecord.version || "-"}
-                          />
-                        </TableCell>
-                        <TableCell className={styles.assemblyManagedColumn}>
-                          <Badge
-                            appearance="tint"
-                            color={
-                              assemblyRecord.isManaged ? "brand" : "informative"
-                            }
-                            title={
-                              assemblyRecord.isManaged ? "Managed" : "Unmanaged"
-                            }
-                          >
-                            {assemblyRecord.isManaged ? "M" : "U"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell
-                          className={styles.assemblyCreatedColumn}
-                          title={formatSolutionDateTime(assemblyRecord.createdOn)}
-                        >
-                          {formatSolutionDate(assemblyRecord.createdOn)}
-                        </TableCell>
-                        <TableCell
-                          className={styles.assemblyModifiedColumn}
-                          title={formatSolutionDateTime(assemblyRecord.modifiedOn)}
-                        >
-                          {formatSolutionDate(assemblyRecord.modifiedOn)}
-                        </TableCell>
-                        <TableCell className={styles.assemblyActionColumn}>
-                          <div className={styles.actionButtons}>
-                            <Button
-                              appearance="subtle"
-                              icon={
-                                inspectedComponentId === assemblyRecord.id &&
-                                inspection &&
-                                hoveredInspectId !== assemblyRecord.id ? (
-                                  <CheckmarkCircle24Regular
-                                    className={styles.inspectedIndicator}
-                                  />
-                                ) : (
-                                  <DocumentSearch24Regular />
-                                )
-                              }
-                              aria-label={
-                                inspectedComponentId === assemblyRecord.id &&
-                                inspection
-                                  ? `Inspect ${assemblyRecord.name} again`
-                                  : `Inspect ${assemblyRecord.name}`
-                              }
-                              title={
-                                inspectedComponentId === assemblyRecord.id &&
-                                inspection
-                                  ? "Inspect again"
-                                  : `Inspect ${assemblyRecord.name}`
-                              }
-                              onMouseEnter={() =>
-                                setHoveredInspectId(assemblyRecord.id)
-                              }
-                              onMouseLeave={() => setHoveredInspectId(null)}
-                              onClick={() => inspectAssembly(assemblyRecord)}
-                              disabled={
-                                isInspectingPackageId !== null ||
-                                isExportingPackageId !== null
-                              }
-                            />
-                            <Button
-                              appearance="subtle"
-                              icon={<Save24Regular />}
-                              aria-label={`Export ${assemblyRecord.name}`}
-                              title={`Export ${assemblyRecord.name}`}
-                              onClick={() => exportAssembly(assemblyRecord)}
-                              disabled={
-                                isInspectingPackageId !== null ||
-                                isExportingPackageId !== null
-                              }
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <PluginAssemblyTable
+                assemblies={pagedAssemblies}
+                inspectedComponentId={inspectedComponentId}
+                hasInspection={inspection !== null}
+                hoveredInspectId={hoveredInspectId}
+                isInspecting={isInspectingPackageId !== null}
+                isExporting={isExportingPackageId !== null}
+                sortKey={assemblySortKey}
+                sortDescending={assemblySortDescending}
+                onHoverInspect={setHoveredInspectId}
+                onInspect={inspectAssembly}
+                onExport={exportAssembly}
+                onSort={sortAssembliesBy}
+              />
             )}
 
             <div className={styles.pagination}>

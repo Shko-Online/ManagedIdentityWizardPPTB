@@ -106,7 +106,7 @@ function App() {
                     <EventLog />
                 </div>
             </div>
-            <div ref={setMenuRoot} />
+            <div className={styles.menuRoot} ref={setMenuRoot} />
         </FluentProvider>
     );
 }

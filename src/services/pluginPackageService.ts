@@ -37,6 +37,8 @@ export interface SolutionRecord {
   publisher: string;
   createdOn: string;
   modifiedOn: string;
+  pluginCount: number;
+  pluginPackageCount: number;
 }
 
 export interface PluginAssemblyRecord {
@@ -49,7 +51,7 @@ export interface PluginAssemblyRecord {
 }
 
 export interface PluginComponentTypes {
-  plugin: number;
+  pluginAssembly: number;
   pluginpackage: number;
 }
 
@@ -65,17 +67,13 @@ const PLUGIN_ASSEMBLY_QUERY = [
 ].join("&");
 
 const PLUGIN_COMPONENT_DEFINITIONS_QUERY = "solutioncomponentdefinitions?$select=primaryentityname,solutioncomponenttype" +
-  "&$filter=(Microsoft.Dynamics.CRM.In(PropertyName=%27primaryentityname%27,PropertyValues=[%27plugin%27,%27pluginpackage%27]))";
+  "&$filter=primaryentityname eq 'pluginpackage'";
 
-function createSolutionsQuery(componentTypes: PluginComponentTypes): string {
-  const componentTypeValues = [componentTypes.plugin, componentTypes.pluginpackage]
-    .map((componentType) => `%27${componentType}%27`)
-    .join(",");
-  const componentFilter = `(Microsoft.Dynamics.CRM.In(PropertyName=%27componenttype%27,PropertyValues=[${componentTypeValues}]))`;
-
-  return "solutions?$select=solutionid,ismanaged,uniquename,version,createdon,modifiedon" +
-    `&$expand=publisherid($select=friendlyname,uniquename),solution_solutioncomponent($select=solutioncomponentid;${"$filter=" + componentFilter})` +
-    `&$filter=(solution_solutioncomponent/any(o1:(o1/Microsoft.Dynamics.CRM.In(PropertyName=%27componenttype%27,PropertyValues=[${componentTypeValues}]))))`;
+function createSolutionComponentsQuery(
+  componentType: number,
+): string {
+  return "solutioncomponents?$select=_solutionid_value,objectid,componenttype" +
+    `&$filter=componenttype eq ${componentType}`;
 }
 
 function asString(value: unknown): string | null {
@@ -144,7 +142,6 @@ export async function getPluginComponentTypes(
 ): Promise<PluginComponentTypes> {
   const result = await dataverseAPI.queryData(PLUGIN_COMPONENT_DEFINITIONS_QUERY);
   const componentTypes = new Map<string, number>();
-
   for (const record of result.value) {
     const entityName = asString(record.primaryentityname);
     const componentType = asNumber(record.solutioncomponenttype);
@@ -154,23 +151,66 @@ export async function getPluginComponentTypes(
     }
   }
 
-  const plugin = componentTypes.get("plugin");
+  const pluginAssembly = 91; // Platform HardCoded!  componentTypes.get("plugin");
   const pluginpackage = componentTypes.get("pluginpackage");
 
-  if (plugin === undefined || pluginpackage === undefined) {
-    throw new Error("Dataverse did not return solution component types for plugin and pluginpackage.");
+  if (pluginAssembly === undefined || pluginpackage === undefined) {
+    throw new Error("Dataverse did not return solution component types for pluginassembly and pluginpackage.");
   }
 
-  return { plugin, pluginpackage };
+  return { pluginAssembly, pluginpackage };
 }
 
 export async function listPluginSolutions(
   dataverseAPI: DataverseAPI.API,
   componentTypes: PluginComponentTypes,
 ): Promise<SolutionRecord[]> {
-  const result = await dataverseAPI.queryData(createSolutionsQuery(componentTypes));
+  const [
+    solutionsResult,
+    assemblyComponentsResult,
+    packageComponentsResult,
+    standaloneAssembliesResult,
+  ] = await Promise.all([
+    dataverseAPI.queryData(
+      "solutions?$select=solutionid,ismanaged,uniquename,version,createdon,modifiedon&$expand=publisherid($select=friendlyname,uniquename)",
+    ),
+    dataverseAPI.queryData(
+      createSolutionComponentsQuery(componentTypes.pluginAssembly),
+    ),
+    dataverseAPI.queryData(
+      createSolutionComponentsQuery(componentTypes.pluginpackage),
+    ),
+    dataverseAPI.queryData(
+      "pluginassemblies?$select=pluginassemblyid&$filter=_packageid_value eq null",
+    ),
+  ]);
+  const standaloneAssemblyIds = new Set(
+    standaloneAssembliesResult.value
+      .map((record) => asString(record.pluginassemblyid))
+      .filter((id): id is string => id !== null),
+  );
+  const componentCounts = new Map<string, { plugins: number; packages: number }>();
+  console.log(assemblyComponentsResult.value, packageComponentsResult.value, standaloneAssemblyIds);
+  for (const component of assemblyComponentsResult.value) {
+    const solutionId = asString(component._solutionid_value);
+    const assemblyId = asString(component.objectid);
+    if (solutionId && assemblyId && standaloneAssemblyIds.has(assemblyId)) {
+      const counts = componentCounts.get(solutionId) ?? { plugins: 0, packages: 0 };
+      counts.plugins += 1;
+      componentCounts.set(solutionId, counts);
+    }
+  }
 
-  return result.value.map((record) => {
+  for (const component of packageComponentsResult.value) {
+    const solutionId = asString(component._solutionid_value);
+    if (solutionId) {
+      const counts = componentCounts.get(solutionId) ?? { plugins: 0, packages: 0 };
+      counts.packages += 1;
+      componentCounts.set(solutionId, counts);
+    }
+  }
+
+  return solutionsResult.value.map((record) => {
     const id = asString(record.solutionid);
     const uniqueName = asString(record.uniquename);
 
@@ -190,8 +230,10 @@ export async function listPluginSolutions(
         : "",
       createdOn: asString(record.createdon) ?? "",
       modifiedOn: asString(record.modifiedon) ?? "",
+      pluginCount: componentCounts.get(id)?.plugins ?? 0,
+      pluginPackageCount: componentCounts.get(id)?.packages ?? 0,
     };
-  });
+  }).filter((solution) => solution.pluginCount > 0 || solution.pluginPackageCount > 0);
 }
 
 export async function getSolutionComponentObjectIds(

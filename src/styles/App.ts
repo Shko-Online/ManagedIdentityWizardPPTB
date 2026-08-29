@@ -63,6 +63,10 @@ const useStyles = makeStyles({
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
     },
+    menuRoot: {
+        position: 'relative',
+        zIndex: 10,
+    },
     toolbar: {
         borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
         padding: tokens.spacingVerticalS,
