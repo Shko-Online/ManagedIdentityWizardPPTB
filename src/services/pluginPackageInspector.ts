@@ -66,7 +66,16 @@ export function formatSolutionDate(value: string): string {
   }
 
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+  return date.toISOString().slice(0, 10);
+}
+
+export function formatSolutionDateTime(value: string): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 export function createNameMatcher(filter: string): (name: string) => boolean {

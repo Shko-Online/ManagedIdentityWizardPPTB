@@ -14,11 +14,13 @@
    limitations under the License.
  */
 
-import { FluentProvider, Text, Title3, webDarkTheme, webLightTheme } from '@fluentui/react-components';
+import { FluentProvider, Title3, webDarkTheme, webLightTheme } from '@fluentui/react-components';
 import { useContext, useEffect, useState } from 'react';
 import { ConnectionStatus } from './components/ConnectionStatus';
+import EllipsisText from './components/EllispsisText';
 import { EventLog } from './components/EventLog';
 import { LogsContext } from './context/LogsContext';
+import MenuRootContext from './context/MenuRootContext';
 import { PluginPackageInspector } from './components/PluginPackageInspector';
 import { ShkoOnlineAd } from './components/ShkoOnlineAd';
 import ToolboxAPIContext from './context/ToolboxAPIContext';
@@ -29,6 +31,7 @@ function App() {
     const { addLog } = useContext(LogsContext);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const styles = useStyles();
+    const { setMenuRoot } = useContext(MenuRootContext);
 
     // Add initial log (run only once on mount)
     useEffect(() => {
@@ -69,8 +72,18 @@ function App() {
         <FluentProvider theme={theme === 'dark' ? webDarkTheme : webLightTheme} className={styles.root}>
             <div className={styles.header}>
                 <div className={styles.headerTitle}>
-                    <Title3>Managed Identity Wizard</Title3>
-                    <Text className={styles.subtitle}>Inspect Dataverse plug-in packages and prepare managed identity credentials.</Text>
+                    <div className={styles.titleGroup}>
+                        <img
+                            className={styles.headerIcon}
+                            src="/ManagedIdentity.svg"
+                            alt=""
+                        />
+                        <Title3 className={styles.title}>{'Managed\u00a0Identity\u00a0Wizard'}</Title3>
+                    </div>
+                    <EllipsisText
+                        className={styles.subtitle}
+                        value="Inspect Dataverse plug-in packages and prepare managed identity credentials."
+                    />
                 </div>
             </div>
 
@@ -93,6 +106,7 @@ function App() {
                     <EventLog />
                 </div>
             </div>
+            <div ref={setMenuRoot} />
         </FluentProvider>
     );
 }

@@ -29,6 +29,7 @@ import {
 import { ConnectionContext } from "../context/ConnectionContext";
 import getEnvironmentColor from "../utils/getEnvironmentColor";
 import { useContext } from "react";
+import EllipsisText from "./EllispsisText";
 import useStyles from "../styles/ConnectionStatus";
 
 export const ConnectionStatus: React.FC = () => {
@@ -96,19 +97,23 @@ export const ConnectionStatus: React.FC = () => {
       <div className={styles.content}>
         <div className={styles.connectionItem}>
           <Text className={styles.label}>Name:</Text>
-          <Text>{connection.name}</Text>
+          <EllipsisText className={styles.ellipsis} value={connection.name} />
         </div>
         <div className={styles.connectionItem}>
           <Text className={styles.label}>URL:</Text>
-          <Text>{connection.url}</Text>
+          <EllipsisText className={styles.ellipsis} value={connection.url} />
         </div>
         <div className={styles.connectionItem}>
           <Text className={styles.label}>Environment:</Text>
           <Badge
             appearance="filled"
             color={getEnvironmentColor(connection.environment)}
+            className={styles.environmentBadge}
           >
-            {connection.environment}
+            <EllipsisText
+              className={styles.ellipsis}
+              value={connection.environment}
+            />
           </Badge>
         </div>
       </div>

@@ -35,10 +35,25 @@ const useStyles = makeStyles({
     display: "flex",
     gap: tokens.spacingHorizontalS,
     alignItems: "baseline",
+    width: "100%",
+    minWidth: "0",
   },
   label: {
     fontWeight: tokens.fontWeightSemibold,
     minWidth: "120px",
+    flexShrink: 0,
+  },
+  ellipsis: {
+    display: "block",
+    width: "100%",
+    minWidth: "0",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  environmentBadge: {
+    maxWidth: "100%",
+    minWidth: "0",
   },
   warningBox: {
     padding: tokens.spacingVerticalM,

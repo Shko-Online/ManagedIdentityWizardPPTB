@@ -26,20 +26,44 @@ const useStyles = makeStyles({
     flexDirection: "column",
     gap: tokens.spacingVerticalM,
   },
+  headerTitle: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: tokens.spacingHorizontalM,
+    minWidth: "0",
+  },
+  title: {
+    flexShrink: 0,
+    fontWeight: tokens.fontWeightSemibold,
+    fontSize: tokens.fontSizeBase400,
+    whiteSpace: "nowrap",
+  },
   toolbar: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     gap: tokens.spacingHorizontalM,
-    flexWrap: "wrap",
+  },
+  toolbarDescription: {
+    color: tokens.colorNeutralForeground3,
+    display: "block",
+    flex: "1 1 0",
+    minWidth: "0",
+    overflow: "hidden",
+    textAlign: "right",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   commandGroup: {
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: tokens.spacingHorizontalS,
+    width: "100%",
+  },
+  overflowMenu: {
+    display: "inline-flex",
     marginLeft: "auto",
-    flexWrap: "wrap",
   },
   toolbarSelect: {
     width: "240px",
@@ -89,26 +113,77 @@ const useStyles = makeStyles({
     width: "100%",
     minWidth: "900px",
   },
+  tableHeader: {
+    "& th": {
+      textAlign: "center",
+    },
+  },
   nameColumn: {
     width: "14%",
   },
   uniqueNameColumn: {
     width: "14%",
+    minWidth: "140px",
+    whiteSpace: "nowrap",
   },
   versionColumn: {
     width: "8%",
   },
   packageFileColumn: {
-    width: "22%",
+    width: "27%",
   },
-  statusColumn: {
-    width: "9%",
+  createdColumn: {
+    width: "112px",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+  },
+  modifiedColumn: {
+    width: "112px",
+    textAlign: "center",
+    whiteSpace: "nowrap",
   },
   managedColumn: {
     width: "9%",
+    textAlign: "center",
   },
   actionColumn: {
+    position: "sticky",
+    right: 0,
+    zIndex: 1,
     width: "12%",
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+  assemblyNameColumn: {
+    width: "30%",
+  },
+  assemblyVersionColumn: {
+    width: "15%",
+  },
+  assemblyManagedColumn: {
+    width: "10%",
+    textAlign: "center",
+  },
+  assemblyCreatedColumn: {
+    width: "112px",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+  },
+  assemblyModifiedColumn: {
+    width: "112px",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+  },
+  assemblyActionColumn: {
+    position: "sticky",
+    right: 0,
+    zIndex: 1,
+    width: "15%",
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+  actionButtons: {
+    display: "flex",
+    justifyContent: "center",
+    gap: tokens.spacingHorizontalXS,
   },
   ellipsis: {
     display: "block",
@@ -122,11 +197,21 @@ const useStyles = makeStyles({
     flexShrink: 0,
     color: tokens.colorPaletteGreenForeground1,
   },
+  selectedSolution: {
+    fontWeight: tokens.fontWeightSemibold,
+  },
   inspectedRow: {
     backgroundColor: tokens.colorNeutralBackground2,
   },
   muted: {
     color: tokens.colorNeutralForeground3,
+  },
+  emptyState: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: tokens.spacingHorizontalS,
+    textAlign: "center",
   },
   error: {
     color: tokens.colorPaletteRedForeground1,
@@ -157,17 +242,6 @@ const useStyles = makeStyles({
     borderRadius: tokens.borderRadiusMedium,
     boxShadow: tokens.shadow64,
   },
-  solutionPickerPopup: {
-    width: "min(1200px, 100%)",
-    maxHeight: "min(760px, 90vh)",
-    overflow: "hidden",
-    backgroundColor: tokens.colorNeutralBackground1,
-    border: `1px solid ${tokens.colorNeutralStroke1}`,
-    borderRadius: tokens.borderRadiusMedium,
-    boxShadow: tokens.shadow64,
-    display: "flex",
-    flexDirection: "column",
-  },
   settingsHeader: {
     display: "flex",
     alignItems: "center",
@@ -181,47 +255,6 @@ const useStyles = makeStyles({
     flexDirection: "column",
     gap: tokens.spacingVerticalM,
     padding: tokens.spacingVerticalM,
-  },
-  solutionPickerControls: {
-    display: "flex",
-    alignItems: "center",
-    gap: tokens.spacingHorizontalS,
-    flexWrap: "wrap",
-    padding: tokens.spacingVerticalM,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-  },
-  solutionFilterInput: {
-    width: "280px",
-    marginLeft: "auto",
-  },
-  solutionTableContainer: {
-    overflow: "auto",
-    padding: tokens.spacingVerticalM,
-  },
-  solutionTable: {
-    minWidth: "980px",
-  },
-  solutionTableHeader: {
-    borderBottom: `3px solid ${tokens.colorNeutralStroke1}`,
-  },
-  solutionHeaderButton: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: tokens.spacingHorizontalXS,
-    fontWeight: tokens.fontWeightSemibold,
-  },
-  solutionCheckboxColumn: {
-    width: "44px",
-  },
-  selectableSolutionRow: {
-    cursor: "pointer",
-    "&:hover": {
-      backgroundColor: tokens.colorNeutralBackground1Hover,
-    },
-    "&:focus-visible": {
-      outline: `2px solid ${tokens.colorBrandStroke1}`,
-      outlineOffset: "-2px",
-    },
   },
   inspectionSummary: {
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,

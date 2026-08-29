@@ -24,7 +24,7 @@
     "url": "https://github.com/Shko-Online/ManagedIdentityWizardPPTB",
     "type": "git"
   },
-  "icon": "ShkoOnline.svg",
+  "icon": "ManagedIdentity.svg",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=18.0.0"

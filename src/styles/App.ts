@@ -36,10 +36,32 @@ const useStyles = makeStyles({
         display: 'flex',
         alignItems: 'baseline',
         gap: tokens.spacingHorizontalM,
+        minWidth: '0',
+    },
+    titleGroup: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: tokens.spacingHorizontalM,
+        flexShrink: 0,
+    },
+    headerIcon: {
+        width: '28px',
+        height: '28px',
+        flexShrink: 0,
+    },
+    title: {
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
     },
     subtitle: {
         color: tokens.colorNeutralForeground3,
         fontSize: tokens.fontSizeBase300,
+        display: 'block',
+        flex: '1 1 0',
+        minWidth: '0',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
     },
     toolbar: {
         borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
@@ -215,16 +237,18 @@ const useStyles = makeStyles({
     },
     topRowContainer: {
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
         gap: tokens.spacingVerticalL,
         alignItems: 'stretch',
     },
     connectionStatus: {
         minHeight: '0',
+        minWidth: '0',
         height: '100%',
     },
     shkoOnlineAd: {
         minHeight: '0',
+        minWidth: '0',
         height: '100%',
     },
 });

@@ -25,6 +25,8 @@ export interface PluginPackageRecord {
   isManaged: boolean;
   stateCode: number | null;
   statusCode: number | null;
+  createdOn: string;
+  modifiedOn: string;
 }
 
 export interface SolutionRecord {
@@ -42,6 +44,8 @@ export interface PluginAssemblyRecord {
   name: string;
   version: string;
   isManaged: boolean;
+  createdOn: string;
+  modifiedOn: string;
 }
 
 export interface PluginComponentTypes {
@@ -50,12 +54,12 @@ export interface PluginComponentTypes {
 }
 
 const PLUGIN_PACKAGE_QUERY = [
-  "pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,statecode,statuscode,_managedidentityid_value",
+  "pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,statecode,statuscode,createdon,modifiedon,_managedidentityid_value",
   "$orderby=name",
 ].join("&");
 
 const PLUGIN_ASSEMBLY_QUERY = [
-  "pluginassemblies?$select=pluginassemblyid,name,version,ismanaged",
+  "pluginassemblies?$select=pluginassemblyid,name,version,ismanaged,createdon,modifiedon",
   "$filter=_packageid_value eq null",
   "$orderby=name",
 ].join("&");
@@ -100,6 +104,8 @@ function mapPluginPackage(record: Record<string, unknown>): PluginPackageRecord 
     isManaged: record.ismanaged === true,
     stateCode: asNumber(record.statecode),
     statusCode: asNumber(record.statuscode),
+    createdOn: asString(record.createdon) ?? "",
+    modifiedOn: asString(record.modifiedon) ?? "",
   };
 }
 
@@ -127,6 +133,8 @@ export async function listPluginAssemblies(
       name: asString(record.name) ?? "(unnamed assembly)",
       version: asString(record.version) ?? "",
       isManaged: record.ismanaged === true,
+      createdOn: asString(record.createdon) ?? "",
+      modifiedOn: asString(record.modifiedon) ?? "",
     };
   });
 }

@@ -15,8 +15,6 @@
  */
 
 import {
-  ArrowSortDown24Regular,
-  ArrowSortUp24Regular,
   ArrowSync24Regular,
   Certificate24Regular,
   CheckmarkCircle24Regular,
@@ -24,6 +22,8 @@ import {
   Dismiss24Regular,
   DocumentSearch24Regular,
   FolderOpen24Regular,
+  Info24Regular,
+  MoreHorizontal24Regular,
   Save24Regular,
   Settings24Regular,
 } from "@fluentui/react-icons";
@@ -35,6 +35,12 @@ import {
   CardHeader,
   Input,
   Label,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   Spinner,
   Table,
   TableBody,
@@ -47,14 +53,13 @@ import {
 
 import {
   type InspectedComponentType,
-  type SolutionSortKey,
   createNameMatcher,
   formatSolutionDate,
+  formatSolutionDateTime,
   getAssemblyExportFileName,
   getCertificateIdentity,
   getExportFileName,
   getSignedLabel,
-  getStatus,
 } from "../services/pluginPackageInspector";
 
 import {
@@ -83,7 +88,9 @@ import { ConnectionContext } from "../context/ConnectionContext";
 import DataverseAPIContext from "../context/DataverseAPIContext";
 import EllipsisText from "./EllispsisText";
 import { LogsContext } from "../context/LogsContext";
+import MenuRootContext from "../context/MenuRootContext";
 import { NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
+import { SolutionPickerDialog } from "./SolutionPickerDialog";
 import ToolboxAPIContext from "../context/ToolboxAPIContext";
 import { inspectNugetSignature } from "../services/nugetSignatureInspector";
 import { inspectPluginAssemblySignature } from "../services/pluginAssemblySignatureInspector";
@@ -91,6 +98,7 @@ import useStyles from "../styles/PluginPackageInspector";
 
 export const PluginPackageInspector: React.FC = () => {
   const styles = useStyles();
+  const { menuRoot: menuMountNode } = useContext(MenuRootContext);
   const [packages, setPackages] = useState<PluginPackageRecord[]>([]);
   const [assemblies, setAssemblies] = useState<PluginAssemblyRecord[]>([]);
   const [activeTab, setActiveTab] = useState<"packages" | "assemblies">(
@@ -100,11 +108,6 @@ export const PluginPackageInspector: React.FC = () => {
   const [nameFilter, setNameFilter] = useState("");
   const [solutions, setSolutions] = useState<SolutionRecord[]>([]);
   const [isSolutionPickerOpen, setIsSolutionPickerOpen] = useState(false);
-  const [solutionFilter, setSolutionFilter] = useState("");
-  const [solutionSortKey, setSolutionSortKey] =
-    useState<SolutionSortKey>("uniqueName");
-  const [solutionSortDescending, setSolutionSortDescending] = useState(false);
-  const [pendingSolutionId, setPendingSolutionId] = useState("");
   const [componentTypes, setComponentTypes] =
     useState<PluginComponentTypes | null>(null);
   const [selectedSolutionId, setSelectedSolutionId] = useState("");
@@ -591,69 +594,9 @@ export const PluginPackageInspector: React.FC = () => {
           solutionComponentIds.assemblies.has(assemblyRecord.id),
         )
       : assemblies;
-  const normalizedSolutionFilter = solutionFilter.trim().toLocaleLowerCase();
-  const visibleSolutions = solutions
-    .filter(
-      (solution) =>
-        !normalizedSolutionFilter ||
-        [
-          solution.uniqueName,
-          solution.version,
-          solution.isManaged ? "managed" : "unmanaged",
-          solution.publisher,
-          formatSolutionDate(solution.createdOn),
-          formatSolutionDate(solution.modifiedOn),
-        ].some((value) =>
-          value.toLocaleLowerCase().includes(normalizedSolutionFilter),
-        ),
-    )
-    .slice()
-    .sort((left, right) => {
-      const leftValue =
-        solutionSortKey === "isManaged"
-          ? left.isManaged
-            ? "managed"
-            : "unmanaged"
-          : left[solutionSortKey];
-      const rightValue =
-        solutionSortKey === "isManaged"
-          ? right.isManaged
-            ? "managed"
-            : "unmanaged"
-          : right[solutionSortKey];
-      const comparison = leftValue.localeCompare(rightValue, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
-      return solutionSortDescending ? -comparison : comparison;
-    });
   const openSolutionPicker = useCallback(() => {
-    setPendingSolutionId(selectedSolutionId);
     setIsSolutionPickerOpen(true);
-  }, [selectedSolutionId]);
-
-  const sortSolutionsBy = useCallback(
-    (sortKey: SolutionSortKey) => {
-      if (solutionSortKey === sortKey) {
-        setSolutionSortDescending((descending) => !descending);
-      } else {
-        setSolutionSortKey(sortKey);
-        setSolutionSortDescending(false);
-      }
-    },
-    [solutionSortKey],
-  );
-  const sortIcon = useCallback(
-    (sortKey: SolutionSortKey) =>
-      solutionSortKey === sortKey ? (
-        solutionSortDescending ? (
-          <ArrowSortDown24Regular />
-        ) : (
-          <ArrowSortUp24Regular />
-        )
-      ) : null,
-    [solutionSortKey, solutionSortDescending],
-  );
+  }, []);
   const nameMatcher = createNameMatcher(nameFilter);
   const visiblePackages = solutionPackages.filter((packageRecord) =>
     nameMatcher(packageRecord.name),
@@ -684,27 +627,20 @@ export const PluginPackageInspector: React.FC = () => {
     <Card className={styles.card}>
       <CardHeader
         header={
-          <Text weight="semibold" size={400}>
-            Plugin Package Inspector
-          </Text>
+          <div className={styles.headerTitle}>
+            <Text className={styles.title}>
+              Plugin Inspector
+            </Text>
+            <EllipsisText
+              className={styles.toolbarDescription}
+              value="Read plugin signing certificates for managed identity configuration."
+            />
+          </div>
         }
       />
       <div className={styles.content}>
         <div className={styles.toolbar}>
-          <Text className={styles.muted}>
-            Read package signing certificates for managed identity
-            configuration.
-          </Text>
           <div className={styles.commandGroup}>
-            {solutions.length > 0 && (
-              <Button onClick={openSolutionPicker}>
-                {selectedSolutionId
-                  ? (solutions.find(
-                      (solution) => solution.id === selectedSolutionId,
-                    )?.uniqueName ?? "Select solution")
-                  : "All Solutions"}
-              </Button>
-            )}
             <Button
               icon={<FolderOpen24Regular />}
               appearance={
@@ -720,12 +656,6 @@ export const PluginPackageInspector: React.FC = () => {
               Inspect local package
             </Button>
             <Button
-              icon={<Settings24Regular />}
-              onClick={() => setIsSettingsOpen(true)}
-            >
-              Managed identity settings
-            </Button>
-            <Button
               appearance="primary"
               icon={<ArrowSync24Regular />}
               onClick={refreshPackages}
@@ -734,6 +664,35 @@ export const PluginPackageInspector: React.FC = () => {
               Refresh packages
             </Button>
           </div>
+          <Menu mountNode={menuMountNode}>
+            <MenuTrigger disableButtonEnhancement>
+              <MenuButton
+                appearance="secondary"
+                className={styles.overflowMenu}
+                icon={<MoreHorizontal24Regular />}
+                aria-label="More inspector actions"
+              />
+            </MenuTrigger>
+            <MenuPopover>
+              <MenuList>
+                {solutions.length > 0 && (
+                  <MenuItem onClick={openSolutionPicker}>
+                    Solution: <EllipsisText value={selectedSolutionId
+                      ? (solutions.find(
+                          (solution) => solution.id === selectedSolutionId,
+                        )?.uniqueName ?? "Select solution")
+                      : "All Solutions"} className={styles.selectedSolution} />
+                  </MenuItem>
+                )}
+                <MenuItem
+                  icon={<Settings24Regular />}
+                  onClick={() => setIsSettingsOpen(true)}
+                >
+                  Managed identity settings
+                </MenuItem>
+              </MenuList>
+            </MenuPopover>
+          </Menu>
         </div>
 
         {isLoading && <Spinner label="Loading plugin packages..." />}
@@ -746,10 +705,13 @@ export const PluginPackageInspector: React.FC = () => {
           !error &&
           packages.length === 0 &&
           assemblies.length === 0 && (
-            <Text className={styles.muted}>
-              Refresh to load plug-in packages and assemblies from the connected
-              environment.
-            </Text>
+            <div className={styles.emptyState}>
+              <Info24Regular />
+              <Text className={styles.muted}>
+                Refresh to load plug-in packages and assemblies from the connected
+                environment.
+              </Text>
+            </div>
           )}
 
         {(visiblePackages.length > 0 || visibleAssemblies.length > 0) && (
@@ -801,7 +763,7 @@ export const PluginPackageInspector: React.FC = () => {
                   size="small"
                   aria-label="Plugin packages"
                 >
-                  <TableHeader>
+                  <TableHeader className={styles.tableHeader}>
                     <TableRow>
                       <TableHeaderCell className={styles.nameColumn}>
                         Name
@@ -815,17 +777,17 @@ export const PluginPackageInspector: React.FC = () => {
                       <TableHeaderCell className={styles.packageFileColumn}>
                         Package file
                       </TableHeaderCell>
-                      <TableHeaderCell className={styles.statusColumn}>
-                        Status
+                      <TableHeaderCell className={styles.createdColumn}>
+                        Created
+                      </TableHeaderCell>
+                      <TableHeaderCell className={styles.modifiedColumn}>
+                        Modified
                       </TableHeaderCell>
                       <TableHeaderCell className={styles.managedColumn}>
-                        Solution Type
+                        Type
                       </TableHeaderCell>
                       <TableHeaderCell className={styles.actionColumn}>
-                        Inspect
-                      </TableHeaderCell>
-                      <TableHeaderCell className={styles.actionColumn}>
-                        Export
+                        Actions
                       </TableHeaderCell>
                     </TableRow>
                   </TableHeader>
@@ -866,11 +828,17 @@ export const PluginPackageInspector: React.FC = () => {
                             }
                           />
                         </TableCell>
-                        <TableCell className={styles.statusColumn}>
-                          <EllipsisText
-                            className={styles.ellipsis}
-                            value={getStatus(packageRecord)}
-                          />
+                        <TableCell
+                          className={styles.createdColumn}
+                          title={formatSolutionDateTime(packageRecord.createdOn)}
+                        >
+                          {formatSolutionDate(packageRecord.createdOn)}
+                        </TableCell>
+                        <TableCell
+                          className={styles.modifiedColumn}
+                          title={formatSolutionDateTime(packageRecord.modifiedOn)}
+                        >
+                          {formatSolutionDate(packageRecord.modifiedOn)}
                         </TableCell>
                         <TableCell className={styles.managedColumn}>
                           <Badge
@@ -878,58 +846,62 @@ export const PluginPackageInspector: React.FC = () => {
                             color={
                               packageRecord.isManaged ? "brand" : "informative"
                             }
+                            title={
+                              packageRecord.isManaged ? "Managed" : "Unmanaged"
+                            }
                           >
-                            {packageRecord.isManaged ? "Managed" : "Unmanaged"}
+                            {packageRecord.isManaged ? "M" : "U"}
                           </Badge>
                         </TableCell>
                         <TableCell className={styles.actionColumn}>
-                          <Button
-                            appearance="subtle"
-                            icon={
-                              inspectedComponentId === packageRecord.id &&
-                              inspection &&
-                              hoveredInspectId !== packageRecord.id ? (
-                                <CheckmarkCircle24Regular
-                                  className={styles.inspectedIndicator}
-                                />
-                              ) : (
-                                <DocumentSearch24Regular />
-                              )
-                            }
-                            aria-label={
-                              inspectedComponentId === packageRecord.id &&
-                              inspection
-                                ? `Inspect ${packageRecord.name} again`
-                                : `Inspect ${packageRecord.name}`
-                            }
-                            title={
-                              inspectedComponentId === packageRecord.id &&
-                              inspection
-                                ? "Inspect again"
-                                : `Inspect ${packageRecord.name}`
-                            }
-                            onMouseEnter={() =>
-                              setHoveredInspectId(packageRecord.id)
-                            }
-                            onMouseLeave={() => setHoveredInspectId(null)}
-                            onClick={() => inspectPackage(packageRecord)}
-                            disabled={
-                              isInspectingPackageId !== null ||
-                              isExportingPackageId !== null
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className={styles.actionColumn}>
-                          <Button
-                            appearance="subtle"
-                            icon={<Save24Regular />}
-                            aria-label={`Export ${packageRecord.name}`}
-                            onClick={() => exportPackage(packageRecord)}
-                            disabled={
-                              isInspectingPackageId !== null ||
-                              isExportingPackageId !== null
-                            }
-                          />
+                          <div className={styles.actionButtons}>
+                            <Button
+                              appearance="subtle"
+                              icon={
+                                inspectedComponentId === packageRecord.id &&
+                                inspection &&
+                                hoveredInspectId !== packageRecord.id ? (
+                                  <CheckmarkCircle24Regular
+                                    className={styles.inspectedIndicator}
+                                  />
+                                ) : (
+                                  <DocumentSearch24Regular />
+                                )
+                              }
+                              aria-label={
+                                inspectedComponentId === packageRecord.id &&
+                                inspection
+                                  ? `Inspect ${packageRecord.name} again`
+                                  : `Inspect ${packageRecord.name}`
+                              }
+                              title={
+                                inspectedComponentId === packageRecord.id &&
+                                inspection
+                                  ? "Inspect again"
+                                  : `Inspect ${packageRecord.name}`
+                              }
+                              onMouseEnter={() =>
+                                setHoveredInspectId(packageRecord.id)
+                              }
+                              onMouseLeave={() => setHoveredInspectId(null)}
+                              onClick={() => inspectPackage(packageRecord)}
+                              disabled={
+                                isInspectingPackageId !== null ||
+                                isExportingPackageId !== null
+                              }
+                            />
+                            <Button
+                              appearance="subtle"
+                              icon={<Save24Regular />}
+                              aria-label={`Export ${packageRecord.name}`}
+                              title={`Export ${packageRecord.name}`}
+                              onClick={() => exportPackage(packageRecord)}
+                              disabled={
+                                isInspectingPackageId !== null ||
+                                isExportingPackageId !== null
+                              }
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -945,22 +917,35 @@ export const PluginPackageInspector: React.FC = () => {
                   size="small"
                   aria-label="Plugin assemblies"
                 >
-                  <TableHeader>
+                  <TableHeader className={styles.tableHeader}>
                     <TableRow>
-                      <TableHeaderCell className={styles.nameColumn}>
+                      <TableHeaderCell className={styles.assemblyNameColumn}>
                         Name
                       </TableHeaderCell>
-                      <TableHeaderCell className={styles.versionColumn}>
+                      <TableHeaderCell
+                        className={styles.assemblyVersionColumn}
+                      >
                         Version
                       </TableHeaderCell>
-                      <TableHeaderCell className={styles.managedColumn}>
-                        Solution Type
+                      <TableHeaderCell
+                        className={styles.assemblyManagedColumn}
+                      >
+                        Type
                       </TableHeaderCell>
-                      <TableHeaderCell className={styles.actionColumn}>
-                        Inspect
+                      <TableHeaderCell
+                        className={styles.assemblyCreatedColumn}
+                      >
+                        Created
                       </TableHeaderCell>
-                      <TableHeaderCell className={styles.actionColumn}>
-                        Export
+                      <TableHeaderCell
+                        className={styles.assemblyModifiedColumn}
+                      >
+                        Modified
+                      </TableHeaderCell>
+                      <TableHeaderCell
+                        className={styles.assemblyActionColumn}
+                      >
+                        Actions
                       </TableHeaderCell>
                     </TableRow>
                   </TableHeader>
@@ -975,76 +960,92 @@ export const PluginPackageInspector: React.FC = () => {
                             : undefined
                         }
                       >
-                        <TableCell className={styles.nameColumn}>
+                        <TableCell className={styles.assemblyNameColumn}>
                           <EllipsisText
                             className={styles.ellipsis}
                             value={assemblyRecord.name}
                           />
                         </TableCell>
-                        <TableCell className={styles.versionColumn}>
+                        <TableCell className={styles.assemblyVersionColumn}>
                           <EllipsisText
                             className={styles.ellipsis}
                             value={assemblyRecord.version || "-"}
                           />
                         </TableCell>
-                        <TableCell className={styles.managedColumn}>
+                        <TableCell className={styles.assemblyManagedColumn}>
                           <Badge
                             appearance="tint"
                             color={
                               assemblyRecord.isManaged ? "brand" : "informative"
                             }
+                            title={
+                              assemblyRecord.isManaged ? "Managed" : "Unmanaged"
+                            }
                           >
-                            {assemblyRecord.isManaged ? "Managed" : "Unmanaged"}
+                            {assemblyRecord.isManaged ? "M" : "U"}
                           </Badge>
                         </TableCell>
-                        <TableCell className={styles.actionColumn}>
-                          <Button
-                            appearance="subtle"
-                            icon={
-                              inspectedComponentId === assemblyRecord.id &&
-                              inspection &&
-                              hoveredInspectId !== assemblyRecord.id ? (
-                                <CheckmarkCircle24Regular
-                                  className={styles.inspectedIndicator}
-                                />
-                              ) : (
-                                <DocumentSearch24Regular />
-                              )
-                            }
-                            aria-label={
-                              inspectedComponentId === assemblyRecord.id &&
-                              inspection
-                                ? `Inspect ${assemblyRecord.name} again`
-                                : `Inspect ${assemblyRecord.name}`
-                            }
-                            title={
-                              inspectedComponentId === assemblyRecord.id &&
-                              inspection
-                                ? "Inspect again"
-                                : `Inspect ${assemblyRecord.name}`
-                            }
-                            onMouseEnter={() =>
-                              setHoveredInspectId(assemblyRecord.id)
-                            }
-                            onMouseLeave={() => setHoveredInspectId(null)}
-                            onClick={() => inspectAssembly(assemblyRecord)}
-                            disabled={
-                              isInspectingPackageId !== null ||
-                              isExportingPackageId !== null
-                            }
-                          />
+                        <TableCell
+                          className={styles.assemblyCreatedColumn}
+                          title={formatSolutionDateTime(assemblyRecord.createdOn)}
+                        >
+                          {formatSolutionDate(assemblyRecord.createdOn)}
                         </TableCell>
-                        <TableCell className={styles.actionColumn}>
-                          <Button
-                            appearance="subtle"
-                            icon={<Save24Regular />}
-                            aria-label={`Export ${assemblyRecord.name}`}
-                            onClick={() => exportAssembly(assemblyRecord)}
-                            disabled={
-                              isInspectingPackageId !== null ||
-                              isExportingPackageId !== null
-                            }
-                          />
+                        <TableCell
+                          className={styles.assemblyModifiedColumn}
+                          title={formatSolutionDateTime(assemblyRecord.modifiedOn)}
+                        >
+                          {formatSolutionDate(assemblyRecord.modifiedOn)}
+                        </TableCell>
+                        <TableCell className={styles.assemblyActionColumn}>
+                          <div className={styles.actionButtons}>
+                            <Button
+                              appearance="subtle"
+                              icon={
+                                inspectedComponentId === assemblyRecord.id &&
+                                inspection &&
+                                hoveredInspectId !== assemblyRecord.id ? (
+                                  <CheckmarkCircle24Regular
+                                    className={styles.inspectedIndicator}
+                                  />
+                                ) : (
+                                  <DocumentSearch24Regular />
+                                )
+                              }
+                              aria-label={
+                                inspectedComponentId === assemblyRecord.id &&
+                                inspection
+                                  ? `Inspect ${assemblyRecord.name} again`
+                                  : `Inspect ${assemblyRecord.name}`
+                              }
+                              title={
+                                inspectedComponentId === assemblyRecord.id &&
+                                inspection
+                                  ? "Inspect again"
+                                  : `Inspect ${assemblyRecord.name}`
+                              }
+                              onMouseEnter={() =>
+                                setHoveredInspectId(assemblyRecord.id)
+                              }
+                              onMouseLeave={() => setHoveredInspectId(null)}
+                              onClick={() => inspectAssembly(assemblyRecord)}
+                              disabled={
+                                isInspectingPackageId !== null ||
+                                isExportingPackageId !== null
+                              }
+                            />
+                            <Button
+                              appearance="subtle"
+                              icon={<Save24Regular />}
+                              aria-label={`Export ${assemblyRecord.name}`}
+                              title={`Export ${assemblyRecord.name}`}
+                              onClick={() => exportAssembly(assemblyRecord)}
+                              disabled={
+                                isInspectingPackageId !== null ||
+                                isExportingPackageId !== null
+                              }
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1168,145 +1169,12 @@ export const PluginPackageInspector: React.FC = () => {
         )}
       </div>
       {isSolutionPickerOpen && (
-        <div
-          className={styles.settingsOverlay}
-          role="presentation"
-          onMouseDown={() => setIsSolutionPickerOpen(false)}
-        >
-          <section
-            className={styles.solutionPickerPopup}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="solution-picker-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className={styles.settingsHeader}>
-              <Text id="solution-picker-title" weight="semibold" size={400}>
-                Select solution
-              </Text>
-              <Button
-                appearance="subtle"
-                icon={<Dismiss24Regular />}
-                aria-label="Close solution picker"
-                onClick={() => setIsSolutionPickerOpen(false)}
-              />
-            </div>
-            <div className={styles.solutionPickerControls}>
-              <Button
-                appearance={pendingSolutionId ? "secondary" : "primary"}
-                onClick={() => {
-                  setSelectedSolutionId(pendingSolutionId);
-                  setIsSolutionPickerOpen(false);
-                }}
-              >
-                {pendingSolutionId
-                  ? `Select ${solutions.find((solution) => solution.id === pendingSolutionId)?.uniqueName ?? "solution"}`
-                  : "Select All Solutions"}
-              </Button>
-              <Input
-                className={styles.solutionFilterInput}
-                aria-label="Filter solutions"
-                placeholder="Filter solutions"
-                value={solutionFilter}
-                onChange={(_event, data) => setSolutionFilter(data.value)}
-              />
-            </div>
-            <div className={styles.solutionTableContainer}>
-              <Table
-                className={styles.solutionTable}
-                size="small"
-                aria-label="Solutions"
-              >
-                <TableHeader className={styles.solutionTableHeader}>
-                  <TableRow>
-                    <TableHeaderCell
-                      className={styles.solutionCheckboxColumn}
-                    ></TableHeaderCell>
-                    {(
-                      [
-                        "uniqueName",
-                        "version",
-                        "isManaged",
-                        "publisher",
-                        "createdOn",
-                        "modifiedOn",
-                      ] as SolutionSortKey[]
-                    ).map((sortKey) => {
-                      const labels: Record<SolutionSortKey, string> = {
-                        uniqueName: "Unique name",
-                        version: "Version",
-                        isManaged: "Solution type",
-                        publisher: "Publisher",
-                        createdOn: "Created on",
-                        modifiedOn: "Modified on",
-                      };
-                      return (
-                        <TableHeaderCell key={sortKey}>
-                          <Button
-                            className={styles.solutionHeaderButton}
-                            appearance="subtle"
-                            onClick={() => sortSolutionsBy(sortKey)}
-                          >
-                            {labels[sortKey]} {sortIcon(sortKey)}
-                          </Button>
-                        </TableHeaderCell>
-                      );
-                    })}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleSolutions.map((solution) => (
-                    <TableRow
-                      key={solution.id}
-                      className={styles.selectableSolutionRow}
-                      tabIndex={0}
-                      onClick={() => setPendingSolutionId(solution.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setPendingSolutionId(solution.id);
-                        }
-                      }}
-                    >
-                      <TableCell className={styles.solutionCheckboxColumn}>
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${solution.uniqueName}`}
-                          checked={pendingSolutionId === solution.id}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={() =>
-                            setPendingSolutionId(
-                              pendingSolutionId === solution.id
-                                ? ""
-                                : solution.id,
-                            )
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>{solution.uniqueName}</TableCell>
-                      <TableCell>{solution.version}</TableCell>
-                      <TableCell>
-                        {solution.isManaged ? "Managed" : "Unmanaged"}
-                      </TableCell>
-                      <TableCell>{solution.publisher}</TableCell>
-                      <TableCell>
-                        {formatSolutionDate(solution.createdOn)}
-                      </TableCell>
-                      <TableCell>
-                        {formatSolutionDate(solution.modifiedOn)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {visibleSolutions.length === 0 && (
-                <Text className={styles.muted}>
-                  No solutions match the filter.
-                </Text>
-              )}
-            </div>
-          </section>
-        </div>
+        <SolutionPickerDialog
+          solutions={solutions}
+          selectedSolutionId={selectedSolutionId}
+          onSelect={setSelectedSolutionId}
+          onClose={() => setIsSolutionPickerOpen(false)}
+        />
       )}
       {isSettingsOpen && (
         <div

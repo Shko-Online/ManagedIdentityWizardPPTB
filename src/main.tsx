@@ -20,6 +20,7 @@ import App from "./App";
 import ConnectionProvider from "./components/ConnectionProvider";
 import DataverseAPIProvider from "./components/DataverseAPIProvider";
 import LogsProvider from "./components/LogsProvider";
+import MenuRootProvider from "./components/MenuRootProvider";
 import { StrictMode } from "react";
 import ToolboxAPIProvider from "./components/ToolboxAPIProvider";
 import { createRoot } from "react-dom/client";
@@ -34,11 +35,13 @@ if (rootElement && !rootElement.hasAttribute("data-reactroot-initialized")) {
     <StrictMode>
       <LogsProvider>
         <ToolboxAPIProvider>
-          <ConnectionProvider>
-            <DataverseAPIProvider>
-              <App />
-            </DataverseAPIProvider>
-          </ConnectionProvider>
+          <MenuRootProvider>
+            <ConnectionProvider>
+              <DataverseAPIProvider>
+                <App />
+              </DataverseAPIProvider>
+            </ConnectionProvider>
+          </MenuRootProvider>
         </ToolboxAPIProvider>
       </LogsProvider>
     </StrictMode>,
