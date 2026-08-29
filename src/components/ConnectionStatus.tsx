@@ -27,9 +27,9 @@ import {
   Warning24Regular,
 } from "@fluentui/react-icons";
 import { ConnectionContext } from "../context/ConnectionContext";
+import EllipsisText from "./EllispsisText";
 import getEnvironmentColor from "../utils/getEnvironmentColor";
 import { useContext } from "react";
-import EllipsisText from "./EllispsisText";
 import useStyles from "../styles/ConnectionStatus";
 
 export const ConnectionStatus: React.FC = () => {
