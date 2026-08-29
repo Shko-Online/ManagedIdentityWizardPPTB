@@ -45,7 +45,7 @@ Provide a Power Platform ToolBox workflow that reads plugin package records from
    - Trusted certificate: issuer and subject SHA-256 hashes over the exact UTF-8 DN strings, encoded as Base64URL.
    - Self-signed certificate: SHA-256 hash over certificate DER bytes, encoded as Base64URL.
    - Tenant ID: convert the GUID to .NET `Guid.ToByteArray()` byte order before Base64URL encoding.
-16. For a signed package or assembly, retrieve `TenantId` and `OrganizationId` using the `RetrieveCurrentOrganization` function, while allowing manual edits, then combine those values with cloud configuration to compute the Step 3 federated credential issuer and version 2 subject identifier.
+16. For a signed package or assembly, retrieve `TenantId` and `EnvironmentId` using the `RetrieveCurrentOrganization` function, while allowing manual edits, then combine those values with cloud configuration to compute the Step 3 federated credential issuer and version 2 subject identifier.
 17. Mark the row that produced the current inspection with a green checkmark in its Inspect action; while hovering that checkmark, show the inspect icon and indicate that the inspection can be run again. Mark the Inspect Local Package button when the current result came from a local file.
 18. Refreshing packages must clear the current inspection result, inspected component indicator, generated identity result, and certificate-details popup state.
 

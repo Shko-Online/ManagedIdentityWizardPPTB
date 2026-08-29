@@ -256,13 +256,13 @@ export const PluginPackageInspector: React.FC = () => {
       const detail = response.Detail as Record<string, unknown> | undefined;
       const retrievedTenantId =
         typeof detail?.TenantId === "string" ? detail.TenantId : "";
-      const retrievedOrganizationId =
-        typeof detail?.OrganizationId === "string" ? detail.OrganizationId : "";
+      const retrievedEnvironmentId =
+        typeof detail?.EnvironmentId === "string" ? detail.EnvironmentId : "";
 
       setTenantId((currentTenantId) => currentTenantId || retrievedTenantId);
       setEnvironmentId(
         (currentEnvironmentId) =>
-          currentEnvironmentId || retrievedOrganizationId,
+          currentEnvironmentId || retrievedEnvironmentId,
       );
     } catch (organizationError) {
       addLog(
@@ -978,7 +978,7 @@ export const PluginPackageInspector: React.FC = () => {
                 />
               </div>
               <div className={styles.inputGroup}>
-                <Label htmlFor="environment-id">Organization ID</Label>
+                <Label htmlFor="environment-id">Environment ID</Label>
                 <Input
                   id="environment-id"
                   value={environmentId}

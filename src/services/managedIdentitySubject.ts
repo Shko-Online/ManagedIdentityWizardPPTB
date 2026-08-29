@@ -104,6 +104,12 @@ function bytesToBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export function encodeTenantId(tenantId: string): string {
   if (!guidPattern.test(tenantId)) {
     throw new Error("Tenant ID must be a GUID.");
@@ -131,6 +137,13 @@ export async function sha256Base64Url(input: string | Uint8Array): Promise<strin
   return bytesToBase64Url(new Uint8Array(digest));
 }
 
+export async function sha256Hex(input: string | Uint8Array): Promise<string> {
+  const bytes = typeof input === "string" ? new TextEncoder().encode(input) : input;
+  const digestInput = new Uint8Array(bytes);
+  const digest = await crypto.subtle.digest("SHA-256", digestInput);
+  return bytesToHex(new Uint8Array(digest));
+}
+
 export async function buildManagedIdentitySubject(
   input: ManagedIdentitySubjectInput,
 ): Promise<ManagedIdentitySubjectResult> {
@@ -143,7 +156,7 @@ export async function buildManagedIdentitySubject(
   const prefix = `${configuration.subjectPrefix}/t/${encodedTenantId}/a/qzXoWDkuqUa3l6zM5mM0Rw/n/plugin/e/${input.environmentId.trim()}`;
 
   if (input.certificate.certificateType === "self-signed") {
-    const certificateHash = await sha256Base64Url(input.certificate.certificateDer);
+    const certificateHash = await sha256Hex(input.certificate.certificateDer);
     return {
       encodedTenantId,
       certificateHash,
