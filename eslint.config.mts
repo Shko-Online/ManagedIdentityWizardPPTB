@@ -8,7 +8,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["node_modules", "dist"]),
+  globalIgnores(["node_modules", "dist", "storybook-static"]),
   {
     files: ["src/**/*.ts", "src/**/*.tsx"],
     // Extend recommended rule sets from:
@@ -57,6 +57,12 @@ export default defineConfig([
   },
   {
     files: ["stories/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-    ...storybook.configs["flat/recommended"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: (import.meta as any).dirname,
+      },
+    },
   },
 ]);
