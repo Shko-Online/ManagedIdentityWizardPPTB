@@ -884,7 +884,7 @@ export const PluginPackageInspector: React.FC = () => {
             </div>
           )}
 
-        {(visiblePackages.length > 0 || visibleAssemblies.length > 0) && (
+        {(solutionPackages.length > 0 || solutionAssemblies.length > 0) && (
           <>
             <PluginComponentTabs
               activeTab={activeTab}
@@ -895,61 +895,75 @@ export const PluginPackageInspector: React.FC = () => {
               onFilterChange={setNameFilter}
             />
 
-            {activeTab === "packages" && (
-              <PluginPackageTable
-                packages={pagedPackages}
-                inspectedComponentId={inspectedComponentId}
-                hasInspection={inspection !== null}
-                hoveredInspectId={hoveredInspectId}
-                isInspecting={isInspectingPackageId !== null}
-                isExporting={isExportingPackageId !== null}
-                sortKey={packageSortKey}
-                sortDescending={packageSortDescending}
-                onHoverInspect={setHoveredInspectId}
-                onInspect={inspectPackage}
-                onExport={exportPackage}
-                onSort={sortPackagesBy}
-              />
-            )}
+            {visiblePackages.length === 0 && visibleAssemblies.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Info24Regular />
+                <Text className={styles.muted}>
+                  No plug-in packages or assemblies match &quot;{nameFilter}
+                  &quot;.
+                </Text>
+              </div>
+            ) : (
+              <>
+                {activeTab === "packages" && (
+                  <PluginPackageTable
+                    packages={pagedPackages}
+                    inspectedComponentId={inspectedComponentId}
+                    hasInspection={inspection !== null}
+                    hoveredInspectId={hoveredInspectId}
+                    isInspecting={isInspectingPackageId !== null}
+                    isExporting={isExportingPackageId !== null}
+                    sortKey={packageSortKey}
+                    sortDescending={packageSortDescending}
+                    onHoverInspect={setHoveredInspectId}
+                    onInspect={inspectPackage}
+                    onExport={exportPackage}
+                    onSort={sortPackagesBy}
+                  />
+                )}
 
-            {activeTab === "assemblies" && (
-              <PluginAssemblyTable
-                assemblies={pagedAssemblies}
-                inspectedComponentId={inspectedComponentId}
-                hasInspection={inspection !== null}
-                hoveredInspectId={hoveredInspectId}
-                isInspecting={isInspectingPackageId !== null}
-                isExporting={isExportingPackageId !== null}
-                sortKey={assemblySortKey}
-                sortDescending={assemblySortDescending}
-                onHoverInspect={setHoveredInspectId}
-                onInspect={inspectAssembly}
-                onExport={exportAssembly}
-                onSort={sortAssembliesBy}
-              />
-            )}
+                {activeTab === "assemblies" && (
+                  <PluginAssemblyTable
+                    assemblies={pagedAssemblies}
+                    inspectedComponentId={inspectedComponentId}
+                    hasInspection={inspection !== null}
+                    hoveredInspectId={hoveredInspectId}
+                    isInspecting={isInspectingPackageId !== null}
+                    isExporting={isExportingPackageId !== null}
+                    sortKey={assemblySortKey}
+                    sortDescending={assemblySortDescending}
+                    onHoverInspect={setHoveredInspectId}
+                    onInspect={inspectAssembly}
+                    onExport={exportAssembly}
+                    onSort={sortAssembliesBy}
+                  />
+                )}
 
-            <div className={styles.pagination}>
-              <Text className={styles.muted}>
-                Page {currentPage} of {pageCount}
-              </Text>
-              <Button
-                appearance="subtle"
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </Button>
-              <Button
-                appearance="subtle"
-                onClick={() =>
-                  setCurrentPage((page) => Math.min(pageCount, page + 1))
-                }
-                disabled={currentPage === pageCount}
-              >
-                Next
-              </Button>
-            </div>
+                <div className={styles.pagination}>
+                  <Text className={styles.muted}>
+                    Page {currentPage} of {pageCount}
+                  </Text>
+                  <Button
+                    appearance="subtle"
+                    onClick={() =>
+                      setCurrentPage((page) => Math.max(1, page - 1))
+                    }
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    appearance="subtle"
+                    onClick={() =>
+                      setCurrentPage((page) => Math.min(pageCount, page + 1))
+                    }
+                    disabled={currentPage === pageCount}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </>
+            )}
           </>
         )}
 
