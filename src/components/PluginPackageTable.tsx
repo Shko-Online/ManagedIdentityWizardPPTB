@@ -34,6 +34,7 @@ import {
 import {
   formatSolutionDate,
   formatSolutionDateTime,
+  getManagedIdentityTooltip,
 } from "../services/pluginPackageInspector";
 import EllipsisText from "./EllispsisText";
 import { type PluginPackageRecord } from "../services/pluginPackageService";
@@ -46,7 +47,8 @@ type PackageSortKey =
   | "packageName"
   | "createdOn"
   | "modifiedOn"
-  | "isManaged";
+  | "isManaged"
+  | "managedIdentity";
 
 type PluginPackageTableProps = {
   packages: PluginPackageRecord[];
@@ -79,16 +81,20 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
 }) => {
   const styles = useStyles();
   const sortIcon = (columnSortKey: PackageSortKey) =>
-    sortKey === columnSortKey ? (
-      sortDescending ? <ArrowSortDown24Regular /> : <ArrowSortUp24Regular />
-    ) : null;
+    sortKey === columnSortKey
+      ? sortDescending
+        ? <ArrowSortDown24Regular />
+        : <ArrowSortUp24Regular />
+      : undefined;
   const sortableHeader = (label: string, columnSortKey: PackageSortKey) => (
     <Button
       className={styles.sortButton}
       appearance="subtle"
       onClick={() => onSort(columnSortKey)}
     >
-      {label} {sortIcon(columnSortKey)}
+      <span className={styles.sortIconSlot} aria-hidden="true" />
+      {label}
+      <span className={styles.sortIconSlot}>{sortIcon(columnSortKey)}</span>
     </Button>
   );
 
@@ -104,6 +110,7 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
             <TableHeaderCell className={styles.createdColumn}>{sortableHeader("Created", "createdOn")}</TableHeaderCell>
             <TableHeaderCell className={styles.modifiedColumn}>{sortableHeader("Modified", "modifiedOn")}</TableHeaderCell>
             <TableHeaderCell className={styles.managedColumn}>{sortableHeader("Type", "isManaged")}</TableHeaderCell>
+            <TableHeaderCell className={styles.identityColumn}>{sortableHeader("Managed identity", "managedIdentity")}</TableHeaderCell>
             <TableHeaderCell className={styles.actionColumn}>Actions</TableHeaderCell>
           </TableRow>
         </TableHeader>
@@ -118,6 +125,19 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
               <TableCell className={styles.modifiedColumn} title={formatSolutionDateTime(packageRecord.modifiedOn)}>{formatSolutionDate(packageRecord.modifiedOn)}</TableCell>
               <TableCell className={styles.managedColumn}>
                 <Badge appearance="tint" color={packageRecord.isManaged ? "brand" : "informative"} title={packageRecord.isManaged ? "Managed" : "Unmanaged"}>{packageRecord.isManaged ? "M" : "U"}</Badge>
+              </TableCell>
+              <TableCell className={styles.identityColumn}>
+                {packageRecord.managedIdentity ? (
+                  <EllipsisText
+                    className={styles.ellipsis}
+                    value={packageRecord.managedIdentity.name}
+                    title={getManagedIdentityTooltip(packageRecord.managedIdentity)}
+                  />
+                ) : packageRecord.managedIdentityId ? (
+                  <Badge appearance="tint" color="warning" title="The related managed identity record could not be read.">Restricted</Badge>
+                ) : (
+                  <span className={styles.muted}>-</span>
+                )}
               </TableCell>
               <TableCell className={styles.actionColumn}>
                 <div className={styles.actionButtons}>

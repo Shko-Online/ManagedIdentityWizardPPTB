@@ -14,6 +14,18 @@
    limitations under the License.
  */
 
+export interface ManagedIdentityRecord {
+  id: string;
+  name: string;
+  applicationId: string | null;
+  tenantId: string | null;
+  credentialSource: number | null;
+  subjectScope: number | null;
+  version: number | null;
+  stateCode: number | null;
+  isManaged: boolean;
+}
+
 export interface PluginPackageRecord {
   id: string;
   name: string;
@@ -22,6 +34,7 @@ export interface PluginPackageRecord {
   packageName: string | null;
   fileId: string | null;
   managedIdentityId: string | null;
+  managedIdentity: ManagedIdentityRecord | null;
   isManaged: boolean;
   stateCode: number | null;
   statusCode: number | null;
@@ -45,6 +58,8 @@ export interface PluginAssemblyRecord {
   id: string;
   name: string;
   version: string;
+  managedIdentityId: string | null;
+  managedIdentity: ManagedIdentityRecord | null;
   isManaged: boolean;
   createdOn: string;
   modifiedOn: string;
@@ -55,13 +70,18 @@ export interface PluginComponentTypes {
   pluginpackage: number;
 }
 
+const MANAGED_IDENTITY_EXPAND =
+  "$expand=managedidentityid($select=managedidentityid,name,applicationid,tenantid,credentialsource,subjectscope,version,statecode,ismanaged)";
+
 const PLUGIN_PACKAGE_QUERY = [
   "pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,statecode,statuscode,createdon,modifiedon,_managedidentityid_value",
+  MANAGED_IDENTITY_EXPAND,
   "$orderby=name",
 ].join("&");
 
 const PLUGIN_ASSEMBLY_QUERY = [
-  "pluginassemblies?$select=pluginassemblyid,name,version,ismanaged,createdon,modifiedon",
+  "pluginassemblies?$select=pluginassemblyid,name,version,ismanaged,createdon,modifiedon,_managedidentityid_value",
+  MANAGED_IDENTITY_EXPAND,
   "$filter=_packageid_value eq null",
   "$orderby=name",
 ].join("&");
@@ -84,6 +104,49 @@ function asNumber(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
+function mapManagedIdentity(value: unknown): ManagedIdentityRecord | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = asString(record.managedidentityid);
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    name: asString(record.name) ?? "(unnamed managed identity)",
+    applicationId: asString(record.applicationid),
+    tenantId: asString(record.tenantid),
+    credentialSource: asNumber(record.credentialsource),
+    subjectScope: asNumber(record.subjectscope),
+    version: asNumber(record.version),
+    stateCode: asNumber(record.statecode),
+    isManaged: record.ismanaged === true,
+  };
+}
+
+/** Callers without read access to managedidentity make the $expand fail, so retry without it. */
+async function queryWithOptionalManagedIdentity(
+  dataverseAPI: DataverseAPI.API,
+  query: string,
+): Promise<Record<string, unknown>[]> {
+  try {
+    const result = await dataverseAPI.queryData(query);
+    return result.value;
+  } catch {
+    const fallbackQuery = query
+      .split("&")
+      .filter((segment) => segment !== MANAGED_IDENTITY_EXPAND)
+      .join("&");
+    const result = await dataverseAPI.queryData(fallbackQuery);
+    return result.value;
+  }
+}
+
 function mapPluginPackage(record: Record<string, unknown>): PluginPackageRecord {
   const id = asString(record.pluginpackageid);
 
@@ -99,6 +162,7 @@ function mapPluginPackage(record: Record<string, unknown>): PluginPackageRecord 
     packageName: asString(record.package_name),
     fileId: asString(record.fileid),
     managedIdentityId: asString(record._managedidentityid_value),
+    managedIdentity: mapManagedIdentity(record.managedidentityid),
     isManaged: record.ismanaged === true,
     stateCode: asNumber(record.statecode),
     statusCode: asNumber(record.statuscode),
@@ -110,16 +174,16 @@ function mapPluginPackage(record: Record<string, unknown>): PluginPackageRecord 
 export async function listPluginPackages(
   dataverseAPI: DataverseAPI.API,
 ): Promise<PluginPackageRecord[]> {
-  const result = await dataverseAPI.queryData(PLUGIN_PACKAGE_QUERY);
-  return result.value.map(mapPluginPackage);
+  const records = await queryWithOptionalManagedIdentity(dataverseAPI, PLUGIN_PACKAGE_QUERY);
+  return records.map(mapPluginPackage);
 }
 
 export async function listPluginAssemblies(
   dataverseAPI: DataverseAPI.API,
 ): Promise<PluginAssemblyRecord[]> {
-  const result = await dataverseAPI.queryData(PLUGIN_ASSEMBLY_QUERY);
+  const records = await queryWithOptionalManagedIdentity(dataverseAPI, PLUGIN_ASSEMBLY_QUERY);
 
-  return result.value.map((record) => {
+  return records.map((record) => {
     const id = asString(record.pluginassemblyid);
 
     if (!id) {
@@ -130,6 +194,8 @@ export async function listPluginAssemblies(
       id,
       name: asString(record.name) ?? "(unnamed assembly)",
       version: asString(record.version) ?? "",
+      managedIdentityId: asString(record._managedidentityid_value),
+      managedIdentity: mapManagedIdentity(record.managedidentityid),
       isManaged: record.ismanaged === true,
       createdOn: asString(record.createdon) ?? "",
       modifiedOn: asString(record.modifiedon) ?? "",

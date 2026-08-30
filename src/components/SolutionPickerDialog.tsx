@@ -114,13 +114,11 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
     setCurrentPage(1);
   };
   const sortIcon = (columnSortKey: SolutionSortKey) =>
-    sortKey === columnSortKey ? (
-      sortDescending ? (
-        <ArrowSortDown24Regular />
-      ) : (
-        <ArrowSortUp24Regular />
-      )
-    ) : null;
+    sortKey === columnSortKey
+      ? sortDescending
+        ? <ArrowSortDown24Regular />
+        : <ArrowSortUp24Regular />
+      : undefined;
 
   return (
     <div className={styles.overlay} role="presentation" onMouseDown={onClose}>
@@ -135,25 +133,6 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
           <Text id="solution-picker-title" weight="semibold" size={400}>
             Select solution
           </Text>
-          <Button
-            appearance="subtle"
-            icon={<Dismiss24Regular />}
-            aria-label="Close solution picker"
-            onClick={onClose}
-          />
-        </div>
-        <div className={styles.controls}>
-          <Button
-            appearance={pendingSolutionId ? "secondary" : "primary"}
-            onClick={() => {
-              onSelect(pendingSolutionId);
-              onClose();
-            }}
-          >
-            {pendingSolutionId
-              ? `Select ${solutions.find((solution) => solution.id === pendingSolutionId)?.uniqueName ?? "solution"}`
-              : "Select All Solutions"}
-          </Button>
           <Input
             className={styles.filterInput}
             aria-label="Filter solutions"
@@ -163,6 +142,12 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
               setFilter(data.value);
               setCurrentPage(1);
             }}
+          />
+          <Button
+            appearance="subtle"
+            icon={<Dismiss24Regular />}
+            aria-label="Close solution picker"
+            onClick={onClose}
           />
         </div>
         <div className={styles.tableContainer}>
@@ -202,10 +187,14 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                             ? styles.createdColumn
                             : columnSortKey === "modifiedOn"
                               ? styles.modifiedColumn
-                                : columnSortKey === "pluginCount" ||
-                                    columnSortKey === "pluginPackageCount"
-                                  ? styles.countColumn
-                              : undefined
+                              : columnSortKey === "pluginCount" ||
+                                  columnSortKey === "pluginPackageCount"
+                                ? styles.countColumn
+                                : columnSortKey === "version"
+                                  ? styles.versionColumn
+                                  : columnSortKey === "publisher"
+                                    ? styles.publisherColumn
+                                    : styles.uniqueNameColumn
                       }
                     >
                       <Button
@@ -213,7 +202,11 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                         appearance="subtle"
                         onClick={() => sortSolutionsBy(columnSortKey)}
                       >
-                        {labels[columnSortKey]} {sortIcon(columnSortKey)}
+                        <span className={styles.sortIconSlot} aria-hidden="true" />
+                        {labels[columnSortKey]}
+                        <span className={styles.sortIconSlot}>
+                          {sortIcon(columnSortKey)}
+                        </span>
                       </Button>
                     </TableHeaderCell>
                   );
@@ -253,7 +246,7 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                       value={solution.uniqueName}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className={styles.versionColumn}>
                     <EllipsisText
                       className={styles.ellipsis}
                       value={solution.version}
@@ -295,25 +288,38 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
             <Text className={styles.muted}>No solutions match the filter.</Text>
           )}
         </div>
-        <div className={styles.pagination}>
-          <Text className={styles.muted}>
-            Page {currentPage} of {pageCount}
-          </Text>
+        <div className={styles.footer}>
+          <div className={styles.pagination}>
+            <Text className={styles.muted}>
+              Page {currentPage} of {pageCount}
+            </Text>
+            <Button
+              appearance="subtle"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              appearance="subtle"
+              onClick={() =>
+                setCurrentPage((page) => Math.min(pageCount, page + 1))
+              }
+              disabled={currentPage === pageCount}
+            >
+              Next
+            </Button>
+          </div>
           <Button
-            appearance="subtle"
-            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            disabled={currentPage === 1}
+            appearance={pendingSolutionId ? "secondary" : "primary"}
+            onClick={() => {
+              onSelect(pendingSolutionId);
+              onClose();
+            }}
           >
-            Previous
-          </Button>
-          <Button
-            appearance="subtle"
-            onClick={() =>
-              setCurrentPage((page) => Math.min(pageCount, page + 1))
-            }
-            disabled={currentPage === pageCount}
-          >
-            Next
+            {pendingSolutionId
+              ? `Select ${solutions.find((solution) => solution.id === pendingSolutionId)?.uniqueName ?? "solution"}`
+              : "Select All Solutions"}
           </Button>
         </div>
       </section>

@@ -18,6 +18,7 @@ import {
 import {
   formatSolutionDate,
   formatSolutionDateTime,
+  getManagedIdentityTooltip,
 } from "../services/pluginPackageInspector";
 import EllipsisText from "./EllispsisText";
 import { type PluginAssemblyRecord } from "../services/pluginPackageService";
@@ -28,7 +29,8 @@ type AssemblySortKey =
   | "version"
   | "createdOn"
   | "modifiedOn"
-  | "isManaged";
+  | "isManaged"
+  | "managedIdentity";
 
 type PluginAssemblyTableProps = {
   assemblies: PluginAssemblyRecord[];
@@ -61,16 +63,20 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
 }) => {
   const styles = useStyles();
   const sortIcon = (columnSortKey: AssemblySortKey) =>
-    sortKey === columnSortKey ? (
-      sortDescending ? <ArrowSortDown24Regular /> : <ArrowSortUp24Regular />
-    ) : null;
+    sortKey === columnSortKey
+      ? sortDescending
+        ? <ArrowSortDown24Regular />
+        : <ArrowSortUp24Regular />
+      : undefined;
   const sortableHeader = (label: string, columnSortKey: AssemblySortKey) => (
     <Button
       className={styles.sortButton}
       appearance="subtle"
       onClick={() => onSort(columnSortKey)}
     >
-      {label} {sortIcon(columnSortKey)}
+      <span className={styles.sortIconSlot} aria-hidden="true" />
+      {label}
+      <span className={styles.sortIconSlot}>{sortIcon(columnSortKey)}</span>
     </Button>
   );
 
@@ -84,6 +90,7 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
             <TableHeaderCell className={styles.assemblyManagedColumn}>{sortableHeader("Type", "isManaged")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyCreatedColumn}>{sortableHeader("Created", "createdOn")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyModifiedColumn}>{sortableHeader("Modified", "modifiedOn")}</TableHeaderCell>
+            <TableHeaderCell className={styles.assemblyIdentityColumn}>{sortableHeader("Managed identity", "managedIdentity")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyActionColumn}>Actions</TableHeaderCell>
           </TableRow>
         </TableHeader>
@@ -97,6 +104,19 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
               </TableCell>
               <TableCell className={styles.assemblyCreatedColumn} title={formatSolutionDateTime(assemblyRecord.createdOn)}>{formatSolutionDate(assemblyRecord.createdOn)}</TableCell>
               <TableCell className={styles.assemblyModifiedColumn} title={formatSolutionDateTime(assemblyRecord.modifiedOn)}>{formatSolutionDate(assemblyRecord.modifiedOn)}</TableCell>
+              <TableCell className={styles.assemblyIdentityColumn}>
+                {assemblyRecord.managedIdentity ? (
+                  <EllipsisText
+                    className={styles.ellipsis}
+                    value={assemblyRecord.managedIdentity.name}
+                    title={getManagedIdentityTooltip(assemblyRecord.managedIdentity)}
+                  />
+                ) : assemblyRecord.managedIdentityId ? (
+                  <Badge appearance="tint" color="warning" title="The related managed identity record could not be read.">Restricted</Badge>
+                ) : (
+                  <span className={styles.muted}>-</span>
+                )}
+              </TableCell>
               <TableCell className={styles.assemblyActionColumn}>
                 <div className={styles.actionButtons}>
                   <Button appearance="subtle" icon={inspectedComponentId === assemblyRecord.id && hasInspection && hoveredInspectId !== assemblyRecord.id ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} /> : <DocumentSearch24Regular />} aria-label={inspectedComponentId === assemblyRecord.id && hasInspection ? `Inspect ${assemblyRecord.name} again` : `Inspect ${assemblyRecord.name}`} title={inspectedComponentId === assemblyRecord.id && hasInspection ? "Inspect again" : `Inspect ${assemblyRecord.name}`} onMouseEnter={() => onHoverInspect(assemblyRecord.id)} onMouseLeave={() => onHoverInspect(null)} onClick={() => onInspect(assemblyRecord)} disabled={isInspecting || isExporting} />

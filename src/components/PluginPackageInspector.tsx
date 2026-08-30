@@ -22,6 +22,7 @@ import {
   FolderOpen24Regular,
   Info24Regular,
   MoreHorizontal24Regular,
+  PersonKey24Regular,
   Settings24Regular,
 } from "@fluentui/react-icons";
 import {
@@ -47,6 +48,7 @@ import {
   getCertificateIdentity,
   getExportFileName,
   getSignedLabel,
+  hasTenantMismatch,
 } from "../services/pluginPackageInspector";
 import {
   type ManagedIdentityCloud,
@@ -55,6 +57,7 @@ import {
   cloudConfigurations,
 } from "../services/managedIdentitySubject";
 import {
+  type ManagedIdentityRecord,
   type PluginAssemblyRecord,
   type PluginComponentTypes,
   type PluginPackageRecord,
@@ -74,6 +77,7 @@ import { ConnectionContext } from "../context/ConnectionContext";
 import DataverseAPIContext from "../context/DataverseAPIContext";
 import EllipsisText from "./EllispsisText";
 import { LogsContext } from "../context/LogsContext";
+import { ManagedIdentityDetailsPopup } from "./ManagedIdentityDetailsPopup";
 import MenuRootContext from "../context/MenuRootContext";
 import { NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
 import { PluginAssemblyTable } from "./PluginAssemblyTable";
@@ -92,13 +96,22 @@ type PackageSortKey =
   | "packageName"
   | "createdOn"
   | "modifiedOn"
-  | "isManaged";
+  | "isManaged"
+  | "managedIdentity";
 type AssemblySortKey =
   | "name"
   | "version"
   | "createdOn"
   | "modifiedOn"
-  | "isManaged";
+  | "isManaged"
+  | "managedIdentity";
+
+function getManagedIdentitySortValue(record: {
+  managedIdentity: ManagedIdentityRecord | null;
+  managedIdentityId: string | null;
+}): string {
+  return `${record.managedIdentity?.name ?? ""}\u0000${record.managedIdentityId ?? ""}`;
+}
 
 export const PluginPackageInspector: React.FC = () => {
   const styles = useStyles();
@@ -149,10 +162,16 @@ export const PluginPackageInspector: React.FC = () => {
   const [hoveredInspectId, setHoveredInspectId] = useState<string | null>(null);
   const [inspectedComponentType, setInspectedComponentType] =
     useState<InspectedComponentType>("package");
+  const [inspectedManagedIdentity, setInspectedManagedIdentity] =
+    useState<ManagedIdentityRecord | null>(null);
+  const [inspectedHasManagedIdentity, setInspectedHasManagedIdentity] =
+    useState(false);
   const [inspection, setInspection] = useState<NugetSignatureInspection | null>(
     null,
   );
   const [isCertificateDetailsOpen, setIsCertificateDetailsOpen] =
+    useState(false);
+  const [isManagedIdentityDetailsOpen, setIsManagedIdentityDetailsOpen] =
     useState(false);
   const { addLog } = useContext(LogsContext);
   const { connection } = useContext(ConnectionContext);
@@ -343,7 +362,10 @@ export const PluginPackageInspector: React.FC = () => {
     setInspection(null);
     setInspectedComponentId(null);
     setInspectedPackageName(null);
+    setInspectedManagedIdentity(null);
+    setInspectedHasManagedIdentity(false);
     setIsCertificateDetailsOpen(false);
+    setIsManagedIdentityDetailsOpen(false);
     setIdentityResult(null);
 
     try {
@@ -440,6 +462,29 @@ export const PluginPackageInspector: React.FC = () => {
     [connection, dataverseAPI, toolboxAPI, addLog],
   );
 
+  const logManagedIdentityWarnings = useCallback(
+    (managedIdentity: ManagedIdentityRecord | null) => {
+      if (!managedIdentity) {
+        return;
+      }
+
+      if (hasTenantMismatch(managedIdentity, tenantId)) {
+        addLog(
+          `Managed identity ${managedIdentity.name} belongs to tenant ${managedIdentity.tenantId}, which differs from the tenant used to compute the subject identifier.`,
+          "warning",
+        );
+      }
+
+      if (managedIdentity.version !== null && managedIdentity.version !== 2) {
+        addLog(
+          `Managed identity ${managedIdentity.name} uses federated credential subject version ${managedIdentity.version}. The generated subject identifier uses version 2.`,
+          "warning",
+        );
+      }
+    },
+    [tenantId, addLog],
+  );
+
   const inspectPackage = useCallback(
     async (packageRecord: PluginPackageRecord) => {
       if (!connection || !dataverseAPI || !toolboxAPI) {
@@ -452,7 +497,17 @@ export const PluginPackageInspector: React.FC = () => {
       setInspectedComponentId(null);
       setInspectedPackageName(packageRecord.name);
       setInspectedComponentType("package");
+      setInspectedManagedIdentity(packageRecord.managedIdentity);
+      setInspectedHasManagedIdentity(packageRecord.managedIdentityId !== null);
       setIsCertificateDetailsOpen(false);
+      setIsManagedIdentityDetailsOpen(false);
+
+      if (packageRecord.managedIdentity?.tenantId) {
+        const identityTenantId = packageRecord.managedIdentity.tenantId;
+        setTenantId((currentTenantId) => currentTenantId || identityTenantId);
+      }
+
+      logManagedIdentityWarnings(packageRecord.managedIdentity);
 
       try {
         const packageBytes = await getPluginPackageContent(
@@ -474,7 +529,7 @@ export const PluginPackageInspector: React.FC = () => {
         setIsInspectingPackageId(null);
       }
     },
-    [connection, dataverseAPI, toolboxAPI, addLog],
+    [connection, dataverseAPI, toolboxAPI, addLog, logManagedIdentityWarnings],
   );
 
   const inspectAssembly = useCallback(
@@ -489,7 +544,17 @@ export const PluginPackageInspector: React.FC = () => {
       setInspectedComponentId(null);
       setInspectedPackageName(assemblyRecord.name);
       setInspectedComponentType("assembly");
+      setInspectedManagedIdentity(assemblyRecord.managedIdentity);
+      setInspectedHasManagedIdentity(assemblyRecord.managedIdentityId !== null);
       setIsCertificateDetailsOpen(false);
+      setIsManagedIdentityDetailsOpen(false);
+
+      if (assemblyRecord.managedIdentity?.tenantId) {
+        const identityTenantId = assemblyRecord.managedIdentity.tenantId;
+        setTenantId((currentTenantId) => currentTenantId || identityTenantId);
+      }
+
+      logManagedIdentityWarnings(assemblyRecord.managedIdentity);
 
       try {
         const assemblyBytes = await getPluginAssemblyContent(
@@ -511,7 +576,7 @@ export const PluginPackageInspector: React.FC = () => {
         setIsInspectingPackageId(null);
       }
     },
-    [connection, dataverseAPI, toolboxAPI, addLog],
+    [connection, dataverseAPI, toolboxAPI, addLog, logManagedIdentityWarnings],
   );
 
   const inspectLocalPackage = useCallback(async () => {
@@ -525,7 +590,10 @@ export const PluginPackageInspector: React.FC = () => {
     setInspectedComponentId(null);
     setInspectedPackageName(null);
     setInspectedComponentType("package");
+    setInspectedManagedIdentity(null);
+    setInspectedHasManagedIdentity(false);
     setIsCertificateDetailsOpen(false);
+    setIsManagedIdentityDetailsOpen(false);
 
     try {
       const filePath = await toolboxAPI.fileSystem.selectPath({
@@ -612,13 +680,17 @@ export const PluginPackageInspector: React.FC = () => {
         ? left.isManaged
           ? "managed"
           : "unmanaged"
-        : left[packageSortKey] ?? "";
+        : packageSortKey === "managedIdentity"
+          ? getManagedIdentitySortValue(left)
+          : left[packageSortKey] ?? "";
     const rightValue =
       packageSortKey === "isManaged"
         ? right.isManaged
           ? "managed"
           : "unmanaged"
-        : right[packageSortKey] ?? "";
+        : packageSortKey === "managedIdentity"
+          ? getManagedIdentitySortValue(right)
+          : right[packageSortKey] ?? "";
     const comparison = leftValue.localeCompare(rightValue, undefined, {
       numeric: true,
       sensitivity: "base",
@@ -631,13 +703,17 @@ export const PluginPackageInspector: React.FC = () => {
         ? left.isManaged
           ? "managed"
           : "unmanaged"
-        : left[assemblySortKey];
+        : assemblySortKey === "managedIdentity"
+          ? getManagedIdentitySortValue(left)
+          : left[assemblySortKey];
     const rightValue =
       assemblySortKey === "isManaged"
         ? right.isManaged
           ? "managed"
           : "unmanaged"
-        : right[assemblySortKey];
+        : assemblySortKey === "managedIdentity"
+          ? getManagedIdentitySortValue(right)
+          : right[assemblySortKey];
     const comparison = leftValue.localeCompare(rightValue, undefined, {
       numeric: true,
       sensitivity: "base",
@@ -876,7 +952,36 @@ export const PluginPackageInspector: React.FC = () => {
                       inspection.certificate.subjectDistinguishedName,
                     )}
                   </Text>
+                  {inspectedComponentId && inspectedComponentId !== "local" && (
+                    <>
+                      <Text className={styles.inspectionLabel}>
+                        Managed identity
+                      </Text>
+                      {inspectedManagedIdentity ? (
+                        <Text
+                          className={styles.inspectionValue}
+                          title={inspectedManagedIdentity.name}
+                        >
+                          {inspectedManagedIdentity.name}
+                        </Text>
+                      ) : (
+                        <Text className={styles.muted}>
+                          {inspectedHasManagedIdentity
+                            ? "The related managed identity record could not be read."
+                            : `No managed identity is associated with this ${inspectedComponentType}.`}
+                        </Text>
+                      )}
+                    </>
+                  )}
                 </div>
+                {inspectedManagedIdentity && (
+                  <Button
+                    icon={<PersonKey24Regular />}
+                    onClick={() => setIsManagedIdentityDetailsOpen(true)}
+                  >
+                    View managed identity details
+                  </Button>
+                )}
                 <Button
                   icon={<Certificate24Regular />}
                   onClick={() => setIsCertificateDetailsOpen(true)}
@@ -1013,6 +1118,14 @@ export const PluginPackageInspector: React.FC = () => {
         <CertificateDetailsPopup
           certificate={inspection.certificate}
           onClose={() => setIsCertificateDetailsOpen(false)}
+        />
+      )}
+      {isManagedIdentityDetailsOpen && inspectedManagedIdentity && (
+        <ManagedIdentityDetailsPopup
+          managedIdentity={inspectedManagedIdentity}
+          tenantId={tenantId}
+          onCopy={copyIdentifier}
+          onClose={() => setIsManagedIdentityDetailsOpen(false)}
         />
       )}
     </Card>

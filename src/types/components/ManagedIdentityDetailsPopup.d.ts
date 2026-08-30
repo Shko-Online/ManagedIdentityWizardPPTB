@@ -14,8 +14,11 @@
    limitations under the License.
  */
 
-function EllipsisText({ value, className, title }: { value: string; className: string; title?: string }) {
-  return <span className={className} title={title ?? value}>{value}</span>;
-}
+import type { ManagedIdentityRecord } from "../services/pluginPackageService";
 
-export default EllipsisText;
+export interface ManagedIdentityDetailsPopupProps {
+  managedIdentity: ManagedIdentityRecord;
+  tenantId: string;
+  onCopy: (label: string, value: string) => void;
+  onClose: () => void;
+}
