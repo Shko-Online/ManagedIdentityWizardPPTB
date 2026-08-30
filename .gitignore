@@ -40,3 +40,7 @@ dist/
 ~/
 *storybook.log
 storybook-static
+
+# Agent skills docs (local-only)
+docs/agents/
+AGENTS.md
