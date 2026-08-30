@@ -7,12 +7,16 @@
   "author": "Shko Online <sales@shko.online>",
   "contributors": [
     {
-      "name": "Betim Beja",
-      "url": "https://github.com/BetimBeja"
-    },
-    {
       "name": "Shko Online",
       "url": "https://github.com/Shko-Online"
+    },
+    {
+      "name": "Betim Beja",
+      "url": "https://github.com/BetimBeja"
+    },  
+    {
+      "name": "David Rivard",
+      "url": "https://github.com/drivardxrm"
     }
   ],
   "configurations": {
