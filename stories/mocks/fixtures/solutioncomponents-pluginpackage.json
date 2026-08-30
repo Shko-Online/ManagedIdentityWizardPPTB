@@ -1,0 +1,89 @@
+{
+  "@odata.context": "https://betim-mvp-alm01.crm4.dynamics.com/api/data/v9.2/$metadata#solutioncomponents(_solutionid_value,objectid,componenttype)",
+  "value": [
+    {
+      "@odata.etag": "W/\"3913782\"",
+      "componenttype": 10039,
+      "objectid": "47cb0644-ba4e-f111-bec7-000d3aba4179",
+      "_solutionid_value": "30cb0644-ba4e-f111-bec7-000d3aba4179",
+      "solutioncomponentid": "a328824a-ba4e-f111-bec7-000d3aba4179"
+    },
+    {
+      "@odata.etag": "W/\"3913783\"",
+      "componenttype": 10039,
+      "objectid": "47cb0644-ba4e-f111-bec7-000d3aba4179",
+      "_solutionid_value": "fd140aaf-4df4-11dd-bd17-0019b9312238",
+      "solutioncomponentid": "a428824a-ba4e-f111-bec7-000d3aba4179"
+    },
+    {
+      "@odata.etag": "W/\"5379578\"",
+      "componenttype": 10039,
+      "objectid": "db35d1e3-cda3-f111-b8db-00224899c4e3",
+      "_solutionid_value": "598f421e-610a-4f6a-80cb-1a105b296cfe",
+      "solutioncomponentid": "e135d1e3-cda3-f111-b8db-00224899c4e3"
+    },
+    {
+      "@odata.etag": "W/\"5379579\"",
+      "componenttype": 10039,
+      "objectid": "db35d1e3-cda3-f111-b8db-00224899c4e3",
+      "_solutionid_value": "fd140aaf-4df4-11dd-bd17-0019b9312238",
+      "solutioncomponentid": "e235d1e3-cda3-f111-b8db-00224899c4e3"
+    },
+    {
+      "@odata.etag": "W/\"5115895\"",
+      "componenttype": 10039,
+      "objectid": "a25fb641-d75f-4452-b630-596cd566fe2e",
+      "_solutionid_value": "7b0b39d0-3c5e-48af-9e7a-ec759abad4fd",
+      "solutioncomponentid": "77dcca8e-6d9d-f111-b8dc-002248a32d2b"
+    },
+    {
+      "@odata.etag": "W/\"3761043\"",
+      "componenttype": 10039,
+      "objectid": "9b8caac4-0617-47c7-92ef-ecc53eb68957",
+      "_solutionid_value": "598f421e-610a-4f6a-80cb-1a105b296cfe",
+      "solutioncomponentid": "be38174a-5941-f111-88b4-7c1e5287b1fc"
+    },
+    {
+      "@odata.etag": "W/\"3761044\"",
+      "componenttype": 10039,
+      "objectid": "9b8caac4-0617-47c7-92ef-ecc53eb68957",
+      "_solutionid_value": "fd140aaf-4df4-11dd-bd17-0019b9312238",
+      "solutioncomponentid": "c038174a-5941-f111-88b4-7c1e5287b1fc"
+    },
+    {
+      "@odata.etag": "W/\"3761045\"",
+      "componenttype": 10039,
+      "objectid": "defb0355-316e-409e-8631-ef617624ac3b",
+      "_solutionid_value": "598f421e-610a-4f6a-80cb-1a105b296cfe",
+      "solutioncomponentid": "c138174a-5941-f111-88b4-7c1e5287b1fc"
+    },
+    {
+      "@odata.etag": "W/\"3761046\"",
+      "componenttype": 10039,
+      "objectid": "defb0355-316e-409e-8631-ef617624ac3b",
+      "_solutionid_value": "fd140aaf-4df4-11dd-bd17-0019b9312238",
+      "solutioncomponentid": "c238174a-5941-f111-88b4-7c1e5287b1fc"
+    },
+    {
+      "@odata.etag": "W/\"1562461\"",
+      "componenttype": 10039,
+      "objectid": "61dbfe41-3773-4b7f-8146-913fe601954b",
+      "_solutionid_value": "49a237f3-2623-4426-819a-35577265287d",
+      "solutioncomponentid": "055609f8-dad7-f011-8543-7ced8d4a0dfa"
+    },
+    {
+      "@odata.etag": "W/\"1562462\"",
+      "componenttype": 10039,
+      "objectid": "61dbfe41-3773-4b7f-8146-913fe601954b",
+      "_solutionid_value": "fd140aaf-4df4-11dd-bd17-0019b9312238",
+      "solutioncomponentid": "065609f8-dad7-f011-8543-7ced8d4a0dfa"
+    },
+    {
+      "@odata.etag": "W/\"3978399\"",
+      "componenttype": 10039,
+      "objectid": "a25fb641-d75f-4452-b630-596cd566fe2e",
+      "_solutionid_value": "fd140aaf-4df4-11dd-bd17-0019b9312238",
+      "solutioncomponentid": "9f76e6af-0355-f111-bec6-7ced8d77d56d"
+    }
+  ]
+}

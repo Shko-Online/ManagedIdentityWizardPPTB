@@ -1,0 +1,10 @@
+{
+  "@odata.context": "https://betim-mvp-alm01.crm4.dynamics.com/api/data/v9.2/$metadata#solutioncomponentdefinitions(primaryentityname,solutioncomponenttype)",
+  "value": [
+    {
+      "solutioncomponenttype": 10039,
+      "solutioncomponentdefinitionid": "bde2745a-a3d7-f011-8543-7ced8d4a0dfa",
+      "primaryentityname": "pluginpackage"
+    }
+  ]
+}

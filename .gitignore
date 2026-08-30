@@ -44,3 +44,6 @@ storybook-static
 # Agent skills docs (local-only)
 docs/agents/
 AGENTS.md
+
+# working directory for verify:readme-images 
+docs/visual-review/

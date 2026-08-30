@@ -1,0 +1,31 @@
+{
+  "@odata.context": "https://betim-mvp-alm01.crm4.dynamics.com/api/data/v9.2/$metadata#Microsoft.Dynamics.CRM.RetrieveCurrentOrganizationResponse",
+  "Detail": {
+    "OrganizationId": "849fa38a-8ed9-f011-89f5-000d3ab6004a",
+    "FriendlyName": "ALM DEV 1",
+    "OrganizationVersion": "9.2.26073.158",
+    "EnvironmentId": "b3a865fe-f011-ee62-b0f0-cc5b211a945c",
+    "DatacenterId": "a0fa6193-6fe1-448f-97bb-87fc2ba1fc80",
+    "Geo": "EMEA",
+    "TenantId": "f33ee34b-2e08-40de-9f61-7e552fa379ac",
+    "UrlName": "betim-mvp-alm01",
+    "UniqueName": "unq849fa38a8ed9f01189f5000d3ab60",
+    "State": "Enabled",
+    "SchemaType": "Standard",
+    "OrganizationType": "CustomerTest",
+    "Endpoints": {
+      "Count": 3,
+      "IsReadOnly": false,
+      "Keys": [
+        "WebApplication",
+        "OrganizationService",
+        "OrganizationDataService"
+      ],
+      "Values": [
+        "https://betim-mvp-alm01.crm4.dynamics.com/",
+        "https://betim-mvp-alm01.api.crm4.dynamics.com/XRMServices/2011/Organization.svc",
+        "https://betim-mvp-alm01.api.crm4.dynamics.com/XRMServices/2011/OrganizationData.svc"
+      ]
+    }
+  }
+}

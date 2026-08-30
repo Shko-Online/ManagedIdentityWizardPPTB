@@ -1,30 +1,11 @@
 import type { Preview } from '@storybook/react-vite';
 import MockDate from 'mockdate';
 import '../src/index.css';
-import ConnectionProvider from '../src/components/ConnectionProvider';
-import DataverseAPIProvider from '../src/components/DataverseAPIProvider';
-import LogsProvider from '../src/components/LogsProvider';
-import MenuRootProvider from '../src/components/MenuRootProvider';
-import ToolboxAPIProvider from '../src/components/ToolboxAPIProvider';
 
+// The real PPTB providers read window.toolboxAPI/window.dataverseAPI, so stories supply mocked ones.
 const preview: Preview = {
-  decorators: [
-    (Story) => (
-      <LogsProvider>
-        <ToolboxAPIProvider>
-          <MenuRootProvider>
-            <ConnectionProvider>
-              <DataverseAPIProvider>
-                <Story />
-              </DataverseAPIProvider>
-            </ConnectionProvider>
-          </MenuRootProvider>
-        </ToolboxAPIProvider>
-      </LogsProvider>
-    ),
-  ],
   async beforeEach() {
-    MockDate.set('2024-04-01T12:00:00Z');
+    MockDate.set('2026-08-30T12:00:00Z');
   },
   parameters: {
     controls: {

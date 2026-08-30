@@ -7,12 +7,16 @@
   "author": "Shko Online <sales@shko.online>",
   "contributors": [
     {
-      "name": "Betim Beja",
-      "url": "https://github.com/BetimBeja"
-    },
-    {
       "name": "Shko Online",
       "url": "https://github.com/Shko-Online"
+    },
+    {
+      "name": "Betim Beja",
+      "url": "https://github.com/BetimBeja"
+    },  
+    {
+      "name": "David Rivard",
+      "url": "https://github.com/drivardxrm"
     }
   ],
   "configurations": {
@@ -39,8 +43,10 @@
     "finalize-package": "npm shrinkwrap",
     "validate": "pptb-validate",
     "release": "semantic-release",
+    "storybook:scripts": "storybook",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "verify:readme-images": "node scripts/verify-readme-images.mjs"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.72.7",
@@ -74,12 +80,15 @@
     "@vitest/browser-playwright": "latest",
     "@vitest/coverage-v8": "latest",
     "chromatic": "^18.7.1",
+    "cross-spawn": "^7.0.6",
     "eslint": "^10.9.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-storybook": "^10.5.10",
     "jiti": "^2.7.0",
     "mockdate": "^3.0.5",
+    "pixelmatch": "^7.1.0",
     "playwright": "latest",
+    "pngjs": "^7.0.0",
     "semantic-release": "^25.0.9",
     "storybook": "^10.5.10",
     "typescript": "^5.6.3",

@@ -1,79 +1,48 @@
-import { DataverseAPIMock, ToolboxAPIMock } from '@shko.online/pptb-mock';
+/*
+   Copyright 2026 Shko Online LLC <sales@shko.online>
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ */
+
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { type FC, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { type FC, type ReactNode, useCallback, useEffect, useState } from 'react';
 import App from '../src/App';
-import LogsProvider from '../src/components/LogsProvider';
-import MenuRootProvider from '../src/components/MenuRootProvider';
 import { ConnectionContext } from '../src/context/ConnectionContext';
 import DataverseAPIContext from '../src/context/DataverseAPIContext';
+import LogsProvider from '../src/components/LogsProvider';
+import MenuRootProvider from '../src/components/MenuRootProvider';
 import ToolboxAPIContext from '../src/context/ToolboxAPIContext';
+import {
+  SIGNED_ASSEMBLY_NAME,
+  SIGNED_PACKAGE_NAME,
+  UNSIGNED_PACKAGE_NAME,
+  createDataverseAPIMock,
+} from './mocks/dataverseMock';
+import { createToolboxAPIMock } from './mocks/toolboxMock';
+import { storybookConnection } from './mocks/connection';
 
-function selectLocalFile(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.nupkg,.dll';
-
-    const complete = (file: File | null) => {
-      input.remove();
-      resolve(file);
-    };
-
-    input.addEventListener('change', () => complete(input.files?.[0] ?? null), { once: true });
-    input.addEventListener('cancel', () => complete(null), { once: true });
-    document.body.append(input);
-    input.click();
-  });
-}
-
-function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(reader.result as ArrayBuffer), { once: true });
-    reader.addEventListener('error', () => reject(reader.error), { once: true });
-    reader.addEventListener('abort', () => reject(new DOMException('File read was aborted.', 'AbortError')), { once: true });
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-const MockToolboxAPIProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const [toolboxAPI] = useState(() => {
-    const api = new ToolboxAPIMock();
-    let selectedFile: File | null = null;
-    api.fileSystem.selectPath.callsFake(async (options) => {
-      if (options?.type !== 'file') {
-        return null;
-      }
-
-      selectedFile = await selectLocalFile();
-      return selectedFile?.name ?? null;
-    });
-    api.fileSystem.readBinary.callsFake(async (filePath) => {
-      if (!selectedFile || selectedFile.name !== filePath) {
-        throw new Error(`Unable to access the selected file: ${filePath}`);
-      }
-
-      return readFileAsArrayBuffer(selectedFile);
-    });
-    api.connections.getActiveConnection.resolves(null);
-    return api;
-  });
-
-  return (
-    <ToolboxAPIContext.Provider value={toolboxAPI}>
-      {children}
-    </ToolboxAPIContext.Provider>
-  );
-};
-
-const MockConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const toolboxAPI = useContext(ToolboxAPIContext);
-  const [connection, setConnection] = useState<ToolBoxAPI.Connection | null>(null);
+const MockProviders: FC<{ connection: ToolBoxAPI.Connection | null; children: ReactNode }> = ({
+  connection,
+  children,
+}) => {
+  const [toolboxAPI] = useState(() => createToolboxAPIMock(connection));
+  const [dataverseAPI] = useState(() => createDataverseAPIMock());
+  const [activeConnection, setActiveConnection] = useState<ToolBoxAPI.Connection | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshConnection = useCallback(async () => {
-    const activeConnection = await toolboxAPI?.connections.getActiveConnection();
-    setConnection(activeConnection ?? null);
+    setActiveConnection(await toolboxAPI.connections.getActiveConnection());
     setIsLoading(false);
   }, [toolboxAPI]);
 
@@ -82,38 +51,30 @@ const MockConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, [refreshConnection]);
 
   return (
-    <ConnectionContext.Provider value={{ connection, isLoading, refreshConnection }}>
-      {children}
-    </ConnectionContext.Provider>
-  );
-};
-
-const MockDataverseAPIProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const [dataverseAPI] = useState(() => new DataverseAPIMock());
-
-  return (
-    <DataverseAPIContext.Provider value={dataverseAPI}>
-      {children}
-    </DataverseAPIContext.Provider>
+    <LogsProvider>
+      <ToolboxAPIContext.Provider value={toolboxAPI}>
+        <MenuRootProvider>
+          <ConnectionContext.Provider
+            value={{ connection: activeConnection, isLoading, refreshConnection }}
+          >
+            <DataverseAPIContext.Provider value={dataverseAPI}>
+              {children}
+            </DataverseAPIContext.Provider>
+          </ConnectionContext.Provider>
+        </MenuRootProvider>
+      </ToolboxAPIContext.Provider>
+    </LogsProvider>
   );
 };
 
 const meta = {
   component: App,
-  tags: ['ai-generated', 'needs-work'],
+  parameters: { layout: 'fullscreen' },
   decorators: [
-    (Story) => (
-      <LogsProvider>
-        <MockToolboxAPIProvider>
-          <MenuRootProvider>
-            <MockConnectionProvider>
-              <MockDataverseAPIProvider>
-                <Story />
-              </MockDataverseAPIProvider>
-            </MockConnectionProvider>
-          </MenuRootProvider>
-        </MockToolboxAPIProvider>
-      </LogsProvider>
+    (Story, context) => (
+      <MockProviders connection={context.parameters.connection ?? null}>
+        <Story />
+      </MockProviders>
     ),
   ],
 } satisfies Meta<typeof App>;
@@ -121,4 +82,109 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Disconnected: Story = {};
+const connected = { connection: storybookConnection };
+
+/** Stable starting point for the README visual-regression runner. */
+export const Documentation: Story = {
+  parameters: connected,
+};
+
+/** Offline mode: only the local file inspection command is available. */
+export const Disconnected: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText('No active connection')).toBeInTheDocument();
+  },
+};
+
+export const Connected: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await expect(
+      await canvas.findByRole('button', { name: `Inspect ${SIGNED_PACKAGE_NAME}` }),
+    ).toBeInTheDocument();
+    await expect(
+      await canvas.findAllByText('ShkoOnline.StorageMI.Plugins Identity'),
+    ).toHaveLength(2);
+  },
+};
+
+export const SolutionFiltered: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await canvas.findByRole('button', { name: `Inspect ${SIGNED_PACKAGE_NAME}` });
+
+    await userEvent.click(await canvas.findByRole('button', { name: 'More inspector actions' }));
+    await userEvent.click(await canvas.findByRole('menuitem', { name: /^Solution:/ }));
+
+    const dialog = within(await canvas.findByRole('dialog'));
+    await userEvent.click(await dialog.findByRole('checkbox', { name: 'Select albx_TestSolution' }));
+    await userEvent.click(await dialog.findByRole('button', { name: 'Select albx_TestSolution' }));
+
+    await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+    await expect(await canvas.findByText('Plugin packages (3)')).toBeInTheDocument();
+    await expect(await canvas.findByText('Plugin assemblies (0)')).toBeInTheDocument();
+  },
+};
+
+export const InspectedPackage: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(
+      await canvas.findByRole('button', { name: `Inspect ${SIGNED_PACKAGE_NAME}` }),
+    );
+
+    await waitFor(
+      async () =>
+        expect(
+          await canvas.findByRole('button', { name: 'View certificate details' }),
+        ).toBeInTheDocument(),
+      { timeout: 20000 },
+    );
+    await expect(await canvas.findByText('Subject identifier')).toBeInTheDocument();
+  },
+};
+
+export const InspectedAssembly: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(await canvas.findByRole('tab', { name: /^Plugin assemblies/ }));
+    // Pasted rather than typed: every keystroke re-renders the full assembly table.
+    await userEvent.click(await canvas.findByRole('textbox', { name: 'Filter component names' }));
+    await userEvent.paste(SIGNED_ASSEMBLY_NAME);
+    await userEvent.click(
+      await canvas.findByRole('button', { name: `Inspect ${SIGNED_ASSEMBLY_NAME}` }),
+    );
+
+    await waitFor(
+      async () =>
+        expect(
+          await canvas.findByRole('button', { name: 'View certificate details' }),
+        ).toBeInTheDocument(),
+      { timeout: 20000 },
+    );
+  },
+};
+
+export const UnsignedPackage: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(
+      await canvas.findByRole('button', { name: `Inspect ${UNSIGNED_PACKAGE_NAME}` }),
+    );
+
+    await expect(
+      await canvas.findByText('This package does not contain a NuGet `.signature.p7s` entry.'),
+    ).toBeInTheDocument();
+  },
+};
