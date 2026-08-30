@@ -84,6 +84,11 @@ type Story = StoryObj<typeof meta>;
 
 const connected = { connection: storybookConnection };
 
+/** Stable starting point for the README visual-regression runner. */
+export const Documentation: Story = {
+  parameters: connected,
+};
+
 /** Offline mode: only the local file inspection command is available. */
 export const Disconnected: Story = {
   play: async ({ canvasElement }) => {
