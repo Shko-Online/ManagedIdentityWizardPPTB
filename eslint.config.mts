@@ -1,15 +1,15 @@
+// For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
+import storybook from "eslint-plugin-storybook";
+
 import { defineConfig, globalIgnores } from "eslint/config";
 import eslintReact from "@eslint-react/eslint-plugin";
 import eslintJs from "@eslint/js";
-import reactHooks from 'eslint-plugin-react-hooks';
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores([
-    "node_modules",
-    "dist",
-  ]),
-   {
+  globalIgnores(["node_modules", "dist"]),
+  {
     files: ["src/**/*.ts", "src/**/*.tsx"],
     // Extend recommended rule sets from:
     // 1. ESLint JS's recommended rules
@@ -32,8 +32,8 @@ export default defineConfig([
     },
     // Custom rule overrides (modify rule levels or disable rules)
     rules: {
-       "sort-imports": "error",
-       "@eslint-react/set-state-in-effect": "off" // Need to figure out better code pattern for this, but for now, we will disable this rule to avoid false positives.
+      "sort-imports": "error",
+      "@eslint-react/set-state-in-effect": "off", // Need to figure out better code pattern for this, but for now, we will disable this rule to avoid false positives.
     },
   },
   {
@@ -43,16 +43,20 @@ export default defineConfig([
   {
     files: ["src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     ignores: ["node_modules", "dist"],
-    plugins: { "tseslint": tseslint.plugin },
+    plugins: { tseslint: tseslint.plugin },
     languageOptions: {
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
         },
-      }
+      },
     },
     rules: {
-      "react-hooks/set-state-in-effect": 'off' // Need to figure out better code pattern for this, but for now, we will disable this rule to avoid false positives.
+      "react-hooks/set-state-in-effect": "off", // Need to figure out better code pattern for this, but for now, we will disable this rule to avoid false positives.
     },
+  },
+  {
+    files: ["stories/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    ...storybook.configs["flat/recommended"],
   },
 ]);

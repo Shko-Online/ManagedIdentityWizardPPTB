@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 /*
    Copyright 2026 Shko Online LLC <sales@shko.online>
 
@@ -23,60 +24,93 @@ import type { Plugin } from 'vite';
  * - Removes type="module" and crossorigin attributes since we're using IIFE format
  * - Moves script tags from head to end of body so DOM is ready when IIFE executes
  */
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
+import { playwright } from '@vitest/browser-playwright';
+const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+
+// More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
+
 function fixHtmlForPPTB(): Plugin {
-    return {
-        name: 'fix-html-for-pptb',
-        enforce: 'post',
-        transformIndexHtml(html) {
-            // Remove type="module" and crossorigin from script tags
-            // IIFE format doesn't need module type, and file:// URLs don't need crossorigin
-            html = html.replace(/\s*type="module"/g, '');
-            html = html.replace(/\s*crossorigin/g, '');
-            // Clean up extra spaces around attributes
-            html = html.replace(/\s+>/g, '>');
+  return {
+    name: 'fix-html-for-pptb',
+    enforce: 'post',
+    transformIndexHtml(html, context) {
+      if (context.path !== '/' && context.path !== '/index.html') {
+        return html;
+      }
 
-            // Move script tags from head to end of body
-            // IIFE executes immediately, so DOM must be ready
-            const scriptRegex = /(<script[^>]*src="[^"]*"[^>]*><\/script>)/g;
-            const scripts: string[] = [];
+      // Remove type="module" and crossorigin from script tags
+      // IIFE format doesn't need module type, and file:// URLs don't need crossorigin
+      html = html.replace(/\s*type="module"/g, '');
+      html = html.replace(/\s*crossorigin/g, '');
+      // Clean up extra spaces around attributes
+      html = html.replace(/\s+>/g, '>');
 
-            // Extract all script tags
-            html = html.replace(scriptRegex, (match) => {
-                scripts.push(match);
-                return ''; // Remove from current position
-            });
+      // Move script tags from head to end of body
+      // IIFE executes immediately, so DOM must be ready
+      const scriptRegex = /(<script[^>]*src="[^"]*"[^>]*><\/script>)/g;
+      const scripts: string[] = [];
 
-            // Insert scripts before closing body tag
-            if (scripts.length > 0) {
-                const scriptsHtml = '\n  ' + scripts.join('\n  ');
-                html = html.replace('</body>', scriptsHtml + '\n</body>');
-            }
+      // Extract all script tags
+      html = html.replace(scriptRegex, match => {
+        scripts.push(match);
+        return ''; // Remove from current position
+      });
 
-            return html;
-        },
-    };
+      // Insert scripts before closing body tag
+      if (scripts.length > 0) {
+        const scriptsHtml = '\n  ' + scripts.join('\n  ');
+        html = html.replace('</body>', scriptsHtml + '\n</body>');
+      }
+      return html;
+    }
+  };
 }
 
 // https://vitejs.dev/config/
-export default defineConfig((configEnv) => {
-    return {
-        plugins: [react(), fixHtmlForPPTB()],
-        base: './',
-        build: {
-            outDir: 'dist',
-            assetsDir: 'assets',
-            sourcemap: configEnv.mode === 'development',
-            rollupOptions: {
-                output: {
-                    // Use IIFE format for compatibility with iframe srcdoc loading
-                    // ES modules can have issues when loaded via file:// URLs in iframes
-                    format: 'iife',
-                    // Bundle everything into a single file to avoid module loading issues
-                    inlineDynamicImports: true,
-                    // Disable chunking since we're bundling everything
-                    manualChunks: undefined,
-                },
-            },
-        },
-    };
+export default defineConfig(configEnv => {
+  return {
+    plugins: [react(), fixHtmlForPPTB()],
+    base: './',
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: configEnv.mode === 'development',
+      rollupOptions: {
+        output: {
+          // Use IIFE format for compatibility with iframe srcdoc loading
+          // ES modules can have issues when loaded via file:// URLs in iframes
+          format: 'iife',
+          // Bundle everything into a single file to avoid module loading issues
+          inlineDynamicImports: true,
+          // Disable chunking since we're bundling everything
+          manualChunks: undefined
+        }
+      }
+    },
+    test: {
+      projects: [{
+        extends: true,
+        plugins: [
+        // The plugin will run tests for the stories defined in your Storybook config
+        // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+        storybookTest({
+          configDir: path.join(dirname, '.storybook')
+        })],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({}),
+            instances: [{
+              browser: 'chromium'
+            }]
+          }
+        }
+      }]
+    }
+  };
 });

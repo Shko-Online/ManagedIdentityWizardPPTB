@@ -35,7 +35,7 @@ import {
   type SolutionSortKey,
   formatSolutionDate,
 } from "../services/pluginPackageInspector";
-import EllipsisText from "./EllispsisText";
+import EllipsisText from "./EllipsisText";
 import { type SolutionRecord } from "../services/pluginPackageService";
 import { useState } from "react";
 import useStyles from "../styles/SolutionPickerDialog";

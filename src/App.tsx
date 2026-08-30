@@ -17,7 +17,7 @@
 import { FluentProvider, Title3, webDarkTheme, webLightTheme } from '@fluentui/react-components';
 import { useContext, useEffect, useState } from 'react';
 import { ConnectionStatus } from './components/ConnectionStatus';
-import EllipsisText from './components/EllispsisText';
+import EllipsisText from './components/EllipsisText';
 import { EventLog } from './components/EventLog';
 import { LogsContext } from './context/LogsContext';
 import MenuRootContext from './context/MenuRootContext';

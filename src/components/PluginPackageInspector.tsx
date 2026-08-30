@@ -38,6 +38,8 @@ import {
   MenuList,
   MenuPopover,
   MenuTrigger,
+  MessageBar,
+  MessageBarBody,
   Spinner,
   Text,
 } from "@fluentui/react-components";
@@ -75,7 +77,7 @@ import { Buffer } from "buffer";
 import { CertificateDetailsPopup } from "./CertificateDetailsPopup";
 import { ConnectionContext } from "../context/ConnectionContext";
 import DataverseAPIContext from "../context/DataverseAPIContext";
-import EllipsisText from "./EllispsisText";
+import EllipsisText from "./EllipsisText";
 import { LogsContext } from "../context/LogsContext";
 import { ManagedIdentityDetailsPopup } from "./ManagedIdentityDetailsPopup";
 import MenuRootContext from "../context/MenuRootContext";
@@ -105,6 +107,21 @@ type AssemblySortKey =
   | "modifiedOn"
   | "isManaged"
   | "managedIdentity";
+
+function formatGuidInput(value: string): string {
+  const hex = value.replace(/[^0-9a-f]/gi, "").slice(0, 32);
+  const groupLengths = [8, 4, 4, 4, 12];
+  let offset = 0;
+
+  return groupLengths
+    .map((length) => {
+      const group = hex.slice(offset, offset + length);
+      offset += length;
+      return group;
+    })
+    .filter(Boolean)
+    .join("-");
+}
 
 function getManagedIdentitySortValue(record: {
   managedIdentity: ManagedIdentityRecord | null;
@@ -177,6 +194,13 @@ export const PluginPackageInspector: React.FC = () => {
   const { connection } = useContext(ConnectionContext);
   const dataverseAPI = useContext(DataverseAPIContext);
   const toolboxAPI = useContext(ToolboxAPIContext);
+  const missingIdentitySettings = !tenantId.trim() || !environmentId.trim();
+  const missingIdentitySettingLabels = [
+    !tenantId.trim() && "Tenant ID",
+    !environmentId.trim() && "Environment ID",
+  ]
+    .filter(Boolean)
+    .join(" and ");
 
   const loadSolutions = useCallback(async () => {
     if (!connection || !dataverseAPI) {
@@ -789,44 +813,56 @@ export const PluginPackageInspector: React.FC = () => {
             >
               Inspect local package
             </Button>
-            <Button
-              appearance="primary"
-              icon={<ArrowSync24Regular />}
-              onClick={refreshPackages}
-              disabled={isLoading || !connection}
-            >
-              Refresh packages
-            </Button>
-          </div>
-          <Menu mountNode={menuMountNode}>
-            <MenuTrigger disableButtonEnhancement>
-              <MenuButton
+            {connection ? (
+              <Button
+                appearance="primary"
+                icon={<ArrowSync24Regular />}
+                onClick={refreshPackages}
+                disabled={isLoading}
+              >
+                Refresh packages
+              </Button>
+            ) : (
+              <Button
                 appearance="secondary"
-                className={styles.overflowMenu}
-                icon={<MoreHorizontal24Regular />}
-                aria-label="More inspector actions"
-              />
-            </MenuTrigger>
-            <MenuPopover>
-              <MenuList>
-                {solutions.length > 0 && (
-                  <MenuItem onClick={openSolutionPicker}>
-                    Solution: <EllipsisText value={selectedSolutionId
-                      ? (solutions.find(
-                          (solution) => solution.id === selectedSolutionId,
-                        )?.uniqueName ?? "Select solution")
-                      : "All Solutions"} className={styles.selectedSolution} />
+                icon={<Settings24Regular />}
+                onClick={() => setIsSettingsOpen(true)}
+              >
+                Managed identity settings
+              </Button>
+            )}
+          </div>
+          {connection && (
+            <Menu mountNode={menuMountNode}>
+              <MenuTrigger disableButtonEnhancement>
+                <MenuButton
+                  appearance="secondary"
+                  className={styles.overflowMenu}
+                  icon={<MoreHorizontal24Regular />}
+                  aria-label="More inspector actions"
+                />
+              </MenuTrigger>
+              <MenuPopover>
+                <MenuList>
+                  {solutions.length > 0 && (
+                    <MenuItem onClick={openSolutionPicker}>
+                      Solution: <EllipsisText value={selectedSolutionId
+                        ? (solutions.find(
+                            (solution) => solution.id === selectedSolutionId,
+                          )?.uniqueName ?? "Select solution")
+                        : "All Solutions"} className={styles.selectedSolution} />
+                    </MenuItem>
+                  )}
+                  <MenuItem
+                    icon={<Settings24Regular />}
+                    onClick={() => setIsSettingsOpen(true)}
+                  >
+                    Managed identity settings
                   </MenuItem>
-                )}
-                <MenuItem
-                  icon={<Settings24Regular />}
-                  onClick={() => setIsSettingsOpen(true)}
-                >
-                  Managed identity settings
-                </MenuItem>
-              </MenuList>
-            </MenuPopover>
-          </Menu>
+                </MenuList>
+              </MenuPopover>
+            </Menu>
+          )}
         </div>
 
         {isLoading && <Spinner label="Loading plugin packages..." />}
@@ -988,6 +1024,20 @@ export const PluginPackageInspector: React.FC = () => {
                 >
                   View certificate details
                 </Button>
+                {missingIdentitySettings && (
+                  <MessageBar intent="warning">
+                    <MessageBarBody>
+                      {missingIdentitySettingLabels} {missingIdentitySettingLabels.includes(" and ") ? "are" : "is"} required to generate a managed identity subject identifier.
+                      <Button
+                        appearance="transparent"
+                        icon={<Settings24Regular />}
+                        onClick={() => setIsSettingsOpen(true)}
+                      >
+                        Open managed identity settings
+                      </Button>
+                    </MessageBarBody>
+                  </MessageBar>
+                )}
                 {identityResult && (
                   <div className={styles.identifierGrid}>
                     <Text className={styles.inspectionLabel}>Issuer</Text>
@@ -1078,8 +1128,10 @@ export const PluginPackageInspector: React.FC = () => {
                 <Input
                   id="tenant-id"
                   value={tenantId}
-                  onChange={(_event, data) => setTenantId(data.value)}
+                  onChange={(_event, data) => setTenantId(formatGuidInput(data.value))}
                   placeholder="00000000-0000-0000-0000-000000000000"
+                  inputMode="text"
+                  spellCheck={false}
                 />
               </div>
               <div className={styles.inputGroup}>
@@ -1087,8 +1139,10 @@ export const PluginPackageInspector: React.FC = () => {
                 <Input
                   id="environment-id"
                   value={environmentId}
-                  onChange={(_event, data) => setEnvironmentId(data.value)}
-                  placeholder="Environment GUID"
+                  onChange={(_event, data) => setEnvironmentId(formatGuidInput(data.value))}
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  inputMode="text"
+                  spellCheck={false}
                 />
               </div>
               <div className={styles.inputGroup}>

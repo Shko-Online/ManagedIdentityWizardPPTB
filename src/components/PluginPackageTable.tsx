@@ -36,7 +36,7 @@ import {
   formatSolutionDateTime,
   getManagedIdentityTooltip,
 } from "../services/pluginPackageInspector";
-import EllipsisText from "./EllispsisText";
+import EllipsisText from "./EllipsisText";
 import { type PluginPackageRecord } from "../services/pluginPackageService";
 import useStyles from "../styles/PluginPackageInspector";
 
