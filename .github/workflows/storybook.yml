@@ -40,6 +40,14 @@ jobs:
       - name: Verify README images
         run: npm run verify:readme-images -- --ci
 
+      - name: Upload visual review artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-review
+          path: docs/visual-review
+          if-no-files-found: ignore
+
       - name: Publish to Chromatic
         uses: chromaui/action@v1
         # Chromatic GitHub Action options
