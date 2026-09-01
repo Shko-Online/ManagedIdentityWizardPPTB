@@ -16,3 +16,6 @@
 
 declare module '*.css';
 declare module '*.svg';
+
+/** Version resolved at build time from semantic-release (see scripts/resolve-version.mjs). */
+declare const __APP_VERSION__: string;
