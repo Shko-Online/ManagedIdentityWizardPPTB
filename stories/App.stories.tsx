@@ -32,11 +32,16 @@ import {
 import { createToolboxAPIMock } from './mocks/toolboxMock';
 import { storybookConnection } from './mocks/connection';
 
-const MockProviders: FC<{ connection: ToolBoxAPI.Connection | null; children: ReactNode }> = ({
+export const MockProviders: FC<{
+  connection: ToolBoxAPI.Connection | null;
+  localFileName?: string;
+  children: ReactNode;
+}> = ({
   connection,
+  localFileName,
   children,
 }) => {
-  const [toolboxAPI] = useState(() => createToolboxAPIMock(connection));
+  const [toolboxAPI] = useState(() => createToolboxAPIMock(connection, { localFileName }));
   const [dataverseAPI] = useState(() => createDataverseAPIMock());
   const [activeConnection, setActiveConnection] = useState<ToolBoxAPI.Connection | null>(null);
   const [isLoading, setIsLoading] = useState(true);

@@ -108,6 +108,10 @@ type AssemblySortKey =
   | "isManaged"
   | "managedIdentity";
 
+type PluginPackageInspectorProps = {
+  onInspectionRequested?: (componentName: string | null, componentType: "package" | "assembly" | "local") => void;
+};
+
 function formatGuidInput(value: string): string {
   const hex = value.replace(/[^0-9a-f]/gi, "").slice(0, 32);
   const groupLengths = [8, 4, 4, 4, 12];
@@ -130,7 +134,9 @@ function getManagedIdentitySortValue(record: {
   return `${record.managedIdentity?.name ?? ""}\u0000${record.managedIdentityId ?? ""}`;
 }
 
-export const PluginPackageInspector: React.FC = () => {
+export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
+  onInspectionRequested,
+}) => {
   const styles = useStyles();
   const { menuRoot: menuMountNode } = useContext(MenuRootContext);
   const [packages, setPackages] = useState<PluginPackageRecord[]>([]);
@@ -511,6 +517,11 @@ export const PluginPackageInspector: React.FC = () => {
 
   const inspectPackage = useCallback(
     async (packageRecord: PluginPackageRecord) => {
+      if (onInspectionRequested) {
+        onInspectionRequested(packageRecord.name, "package");
+        return;
+      }
+
       if (!connection || !dataverseAPI || !toolboxAPI) {
         return;
       }
@@ -553,11 +564,16 @@ export const PluginPackageInspector: React.FC = () => {
         setIsInspectingPackageId(null);
       }
     },
-    [connection, dataverseAPI, toolboxAPI, addLog, logManagedIdentityWarnings],
+    [connection, dataverseAPI, toolboxAPI, addLog, logManagedIdentityWarnings, onInspectionRequested],
   );
 
   const inspectAssembly = useCallback(
     async (assemblyRecord: PluginAssemblyRecord) => {
+      if (onInspectionRequested) {
+        onInspectionRequested(assemblyRecord.name, "assembly");
+        return;
+      }
+
       if (!connection || !dataverseAPI || !toolboxAPI) {
         return;
       }
@@ -600,10 +616,15 @@ export const PluginPackageInspector: React.FC = () => {
         setIsInspectingPackageId(null);
       }
     },
-    [connection, dataverseAPI, toolboxAPI, addLog, logManagedIdentityWarnings],
+    [connection, dataverseAPI, toolboxAPI, addLog, logManagedIdentityWarnings, onInspectionRequested],
   );
 
   const inspectLocalPackage = useCallback(async () => {
+    if (onInspectionRequested) {
+      onInspectionRequested(null, "local");
+      return;
+    }
+
     if (!toolboxAPI) {
       return;
     }
@@ -656,7 +677,7 @@ export const PluginPackageInspector: React.FC = () => {
     } finally {
       setIsInspectingPackageId(null);
     }
-  }, [toolboxAPI, addLog]);
+  }, [toolboxAPI, addLog, onInspectionRequested]);
 
   const copyIdentifier = useCallback(
     async (label: string, value: string) => {

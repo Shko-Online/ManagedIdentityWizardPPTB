@@ -1,0 +1,40 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as FeatureStories from './IntroductionFeatures.stories';
+
+<Meta title="Introduction" />
+
+# Managed Identity Wizard
+
+Managed Identity Wizard is a Power Platform ToolBox tool for configuring Dataverse managed identities for plugin packages and plugin assemblies.
+
+**Version:** 0.1.0  
+**License:** Apache-2.0
+
+## Solution Filter
+
+Use the Solution command in the inspector actions menu to limit plugin packages and assemblies to a selected solution. The default view covers all solutions.
+
+<Canvas of={FeatureStories.SolutionFilter} />
+
+## Plugin Packages and Assemblies
+
+Refresh packages to browse plugin packages and plugin assemblies separately for the selected solution. Each component can be inspected for signing and managed identity details, or exported for local use.
+
+<Canvas of={FeatureStories.ComponentLists} />
+
+## Local Inspection
+
+Inspect a local `.nupkg` or `.dll` when the component is available during development. Local inspection works without an active Dataverse connection.
+
+<Canvas of={FeatureStories.LocalInspection} />
+
+## Inspection Details
+
+Inspection reports the signer and the managed identity subject identifier calculated from the component signature. Managed identity subject settings supply the tenant, environment, and cloud values used when calculating the identifier. Certificate details include signer metadata and the certificate chain.
+
+For complete workflows, open the [connected](?path=/story/app--connected), [package inspection](?path=/story/app--inspected-package), [assembly inspection](?path=/story/app--inspected-assembly), and [offline inspection](?path=/story/app--disconnected) stories.
+
+## Credits
+
+1. [Power Platform ToolBox v1.2.5](https://github.com/PowerPlatformToolBox/desktop-app/releases/latest), the host platform for this tool, is licensed under [GPL-3.0](https://github.com/PowerPlatformToolBox/desktop-app/blob/main/LICENSE).
+2. [React and React DOM 19.2.8](https://react.dev) (MIT), [Fluent UI React Components 9.74.7](https://react.fluentui.dev) (MIT), [Fluent UI React Icons 2.0.339](https://github.com/microsoft/fluentui-system-icons) (MIT), [ZIP.js 2.9.0](https://gildas-lormeau.github.io/zip.js) (BSD-3-Clause), [ASN.1.js 3.0.10](https://github.com/PeculiarVentures/asn1.js) (BSD-3-Clause), [PKI.js 3.4.0](https://github.com/PeculiarVentures/PKI.js) (BSD-3-Clause), [PPTB Mock 1.0.11](https://www.npmjs.com/package/@shko.online/pptb-mock) (Apache-2.0), and [Storybook 10.5.10](https://storybook.js.org) (MIT). Versions are pinned in `package.json`; licenses are recorded in `package-lock.json`.

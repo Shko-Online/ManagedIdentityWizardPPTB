@@ -16,6 +16,10 @@
 
 import { ToolboxAPIMock } from '@shko.online/pptb-mock';
 
+type ToolboxMockOptions = {
+  localFileName?: string;
+};
+
 function selectLocalFile(): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -48,9 +52,13 @@ function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   });
 }
 
-export function createToolboxAPIMock(connection: ToolBoxAPI.Connection | null): ToolboxAPIMock {
+export function createToolboxAPIMock(
+  connection: ToolBoxAPI.Connection | null,
+  mockOptions: ToolboxMockOptions = {},
+): ToolboxAPIMock {
   const api = new ToolboxAPIMock();
   let selectedFile: File | null = null;
+  let selectedFileBytes: ArrayBuffer | null = null;
 
   api.connections.getActiveConnection.resolves(connection);
   api.connections.getSecondaryConnection.resolves(null);
@@ -62,9 +70,19 @@ export function createToolboxAPIMock(connection: ToolBoxAPI.Connection | null): 
   });
   api.utils.showNotification.resolves();
 
-  api.fileSystem.selectPath.callsFake(async (options) => {
-    if (options?.type !== 'file') {
+  api.fileSystem.selectPath.callsFake(async (selectionOptions) => {
+    if (selectionOptions?.type !== 'file') {
       return null;
+    }
+
+    if (mockOptions.localFileName) {
+      const response = await fetch(`/mocks/${mockOptions.localFileName}`);
+      if (!response.ok) {
+        throw new Error(`Unable to load local fixture: ${mockOptions.localFileName}`);
+      }
+
+      selectedFileBytes = await response.arrayBuffer();
+      return mockOptions.localFileName;
     }
 
     selectedFile = await selectLocalFile();
@@ -72,6 +90,10 @@ export function createToolboxAPIMock(connection: ToolBoxAPI.Connection | null): 
   });
 
   api.fileSystem.readBinary.callsFake(async (filePath) => {
+    if (mockOptions.localFileName === filePath && selectedFileBytes) {
+      return selectedFileBytes;
+    }
+
     if (!selectedFile || selectedFile.name !== filePath) {
       throw new Error(`Unable to access the selected file: ${filePath}`);
     }

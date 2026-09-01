@@ -39,8 +39,8 @@ export const PluginComponentTabs: React.FC<PluginComponentTabsProps> = ({
   const styles = useStyles();
 
   return (
-    <div className={styles.tabs} role="tablist" aria-label="Component type">
-      <div className={styles.tabButtons}>
+    <div className={styles.tabs}>
+      <div className={styles.tabButtons} role="tablist" aria-label="Component type">
         <Button
           appearance="subtle"
           className={activeTab === "packages" ? styles.activeTab : undefined}

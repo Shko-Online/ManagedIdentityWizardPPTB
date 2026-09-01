@@ -37,7 +37,9 @@ import {
 } from "../services/pluginPackageInspector";
 import EllipsisText from "./EllipsisText";
 import { type SolutionRecord } from "../services/pluginPackageService";
-import { useState } from "react";
+import MenuRootContext from "../context/MenuRootContext";
+import { useContext, useState } from "react";
+import { createPortal } from "react-dom";
 import useStyles from "../styles/SolutionPickerDialog";
 
 type SolutionPickerDialogProps = {
@@ -54,6 +56,7 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
   onSelect,
 }) => {
   const styles = useStyles();
+  const { menuRoot } = useContext(MenuRootContext);
   const [filter, setFilter] = useState("");
   const [pendingSolutionId, setPendingSolutionId] =
     useState(selectedSolutionId);
@@ -120,7 +123,7 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
         : <ArrowSortUp24Regular />
       : undefined;
 
-  return (
+  const dialog = (
     <div className={styles.overlay} role="presentation" onMouseDown={onClose}>
       <section
         className={styles.popup}
@@ -325,4 +328,6 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
       </section>
     </div>
   );
+
+  return menuRoot ? createPortal(dialog, menuRoot) : dialog;
 };

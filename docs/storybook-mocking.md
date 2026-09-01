@@ -10,6 +10,15 @@ there: `window.toolboxAPI` and `window.dataverseAPI`. Outside PPTB both are `und
 renders an empty shell. Storybook replaces them with `ToolboxAPIMock` / `DataverseAPIMock` from
 `@shko.online/pptb-mock` (Sinon stubs) fed with JSON captured from a real Dataverse environment.
 
+## Refreshing the Power Platform ToolBox credit
+
+The Introduction story credits the Power Platform ToolBox host platform. To refresh that credit:
+
+1. Read the [desktop-app README](https://github.com/PowerPlatformToolBox/desktop-app) for the display name and canonical repository URL.
+2. Check [the latest release](https://github.com/PowerPlatformToolBox/desktop-app/releases/latest) and record the tag marked **Latest**. Do not use an Insider `*-dev.*` prerelease.
+3. Confirm the license in the repository-root [LICENSE](https://github.com/PowerPlatformToolBox/desktop-app/blob/main/LICENSE).
+4. Update the display name, version, license label, and links together in the Introduction story's Credits section, then open the page in Storybook to check that the credit remains readable.
+
 ## Layout
 
 | Path | Purpose |
