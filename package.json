@@ -13,7 +13,7 @@
     {
       "name": "Betim Beja",
       "url": "https://github.com/BetimBeja"
-    },  
+    },
     {
       "name": "David Rivard",
       "url": "https://github.com/drivardxrm"
@@ -55,7 +55,6 @@
     "@zip.js/zip.js": "^2.8.60",
     "asn1js": "^3.0.10",
     "buffer": "^6.0.3",
-    "jkurwa": "^1.22.7",
     "pkijs": "^3.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

@@ -15,84 +15,42 @@
  */
 
 import * as asn1js from "asn1js";
-import { Certificate, dstszi2010 } from "jkurwa";
-import type { CmsContentInfo, CmsSignedData, CmsSignerIdentifier, NugetSignatureInspection, SignerCertificate, SigningCertificateDetails } from "../types/services/nugetSignatureInspector";
-import { ContentInfo, SignedData } from "pkijs";
+import { Certificate, ContentInfo, SignedData } from "pkijs";
+import type { NugetSignatureInspection, SignerCertificate, SigningCertificateDetails } from "../types/services/nugetSignatureInspector";
 import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from "@zip.js/zip.js";
-import { Buffer } from "buffer";
+import type { RelativeDistinguishedNames } from "pkijs";
 import { sha256Base64Url } from "./managedIdentitySubject";
 
-function normalizeSerialNumber(value: CmsSignerIdentifier["value"] extends infer SignerValue
-  ? SignerValue extends { serialNumber?: infer SerialNumber }
-    ? SerialNumber | undefined
-    : never
-  : never): string | null {
-  if (typeof value === "string") {
-    return value.toLowerCase();
-  }
+const distinguishedNameAttributeTypes: Record<string, string> = {
+  "0.9.2342.19200300.100.1.25": "domainComponent",
+  "1.2.840.113549.1.9.1": "emailAddress",
+  "2.5.4.3": "commonName",
+  "2.5.4.4": "surname",
+  "2.5.4.5": "serialNumber",
+  "2.5.4.6": "countryName",
+  "2.5.4.7": "localityName",
+  "2.5.4.8": "stateOrProvinceName",
+  "2.5.4.9": "streetAddress",
+  "2.5.4.10": "organizationName",
+  "2.5.4.11": "organizationalUnitName",
+  "2.5.4.12": "title",
+  "2.5.4.42": "givenName",
+  "2.5.4.43": "initials",
+  "2.5.4.44": "generationQualifier",
+  "2.5.4.46": "dnQualifier",
+  "2.5.4.65": "pseudonym",
+};
 
-  if (typeof value === "number") {
-    return value.toString(16).toLowerCase();
-  }
-
-  if (value && typeof value === "object" && "toString" in value) {
-    return value.toString(16).toLowerCase();
-  }
-
-  return null;
-}
-
-function findSignerCertificate(content: CmsSignedData): Certificate {
-  const certificates = content.certificate ?? [];
-
-  if (certificates.length === 0) {
-    throw new Error("The NuGet signature does not contain a signing certificate.");
-  }
-
-  const signerSerial = normalizeSerialNumber(content.signerInfos?.[0]?.sid?.value?.serialNumber);
-  const parsedCertificates = certificates.map((certificate) => new Certificate(certificate));
-
-  if (!signerSerial) {
-    return parsedCertificates[0];
-  }
-
-  const signerCertificate = parsedCertificates.find(
-    (certificate) => certificate.serial.toString(16).toLowerCase() === signerSerial,
-  );
-
-  if (!signerCertificate) {
-    throw new Error("The NuGet signer certificate was not found in the signature.");
-  }
-
-  return signerCertificate;
-}
-
-function getJkurwaSignerCertificate(signatureBytes: Uint8Array): SignerCertificate {
-  const contentInfo = dstszi2010.ContentInfo.decode(
-    Buffer.from(signatureBytes),
-    "der",
-  ) as CmsContentInfo;
-
-  if (contentInfo.contentType !== "signedData" || !contentInfo.content) {
-    throw new Error("The NuGet signature is not a CMS signed-data document.");
-  }
-
-  const embeddedCertificates = (contentInfo.content.certificate ?? []).map(
-    (certificate) => new Certificate(certificate),
-  );
-
-  return {
-    certificate: findSignerCertificate(contentInfo.content),
-    embeddedCertificates,
-  };
-}
-
-function getHex(value: ArrayBuffer | undefined): string | null {
+function getHex(value: ArrayBuffer | ArrayBufferView | undefined): string | null {
   if (!value) {
     return null;
   }
 
-  return Array.from(new Uint8Array(value), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const bytes = ArrayBuffer.isView(value)
+    ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+    : new Uint8Array(value);
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function getValueHex(value: unknown): ArrayBuffer | undefined {
@@ -104,11 +62,8 @@ function getValueHex(value: unknown): ArrayBuffer | undefined {
   return valueBlock?.valueHex;
 }
 
-function getSubjectKeyIdentifier(certificate: unknown): string | null {
-  const extensions = (certificate as {
-    extensions?: Array<{ extnID?: string; extnValue?: unknown }>;
-  }).extensions;
-  const extension = extensions?.find((item) => item.extnID === "2.5.29.14");
+function getSubjectKeyIdentifier(certificate: Certificate): string | null {
+  const extension = certificate.extensions?.find((item) => item.extnID === "2.5.29.14");
   const encodedKeyIdentifier = getValueHex(extension?.extnValue);
 
   if (!encodedKeyIdentifier) {
@@ -119,7 +74,28 @@ function getSubjectKeyIdentifier(certificate: unknown): string | null {
   return decodedKeyIdentifier.offset === -1 ? null : getHex(getValueHex(decodedKeyIdentifier.result));
 }
 
-function getPkiJsSignerCertificate(signatureBytes: Uint8Array): SignerCertificate {
+// The distinguished name layout is part of the managed identity subject hash, so it must stay stable.
+function formatDistinguishedName(name: RelativeDistinguishedNames): string {
+  return name.typesAndValues
+    .map((typeAndValue) => {
+      const attributeType = distinguishedNameAttributeTypes[typeAndValue.type] ?? typeAndValue.type;
+      const attributeValue = (typeAndValue.value as { valueBlock?: { value?: unknown } }).valueBlock?.value;
+
+      return `${attributeType}=${attributeValue === undefined ? "" : String(attributeValue)}`;
+    })
+    .join("/");
+}
+
+function getSerialNumber(certificate: Certificate): string {
+  const hex = getHex(certificate.serialNumber.valueBlock.valueHexView) ?? "0";
+  return hex.replace(/^0+(?=.)/, "");
+}
+
+function getCertificateDer(certificate: Certificate): Uint8Array {
+  return new Uint8Array(certificate.toSchema().toBER(false));
+}
+
+function getSignerCertificate(signatureBytes: Uint8Array): SignerCertificate {
   const cmsBytes = Uint8Array.from(signatureBytes);
   const asn1 = asn1js.fromBER(cmsBytes.buffer as ArrayBuffer);
 
@@ -135,7 +111,7 @@ function getPkiJsSignerCertificate(signatureBytes: Uint8Array): SignerCertificat
 
   const signedData = new SignedData({ schema: contentInfo.content });
   const certificates = signedData.certificates?.filter(
-    (certificate) => "serialNumber" in certificate && "toSchema" in certificate,
+    (certificate): certificate is Certificate => certificate instanceof Certificate,
   ) ?? [];
   const signerIdentifier = signedData.signerInfos[0]?.sid;
 
@@ -149,7 +125,7 @@ function getPkiJsSignerCertificate(signatureBytes: Uint8Array): SignerCertificat
   const signerKeyIdentifier = signerSerial ? null : getHex(getValueHex(signerIdentifier));
   const signerCertificate = certificates.find((certificate) => {
     if (signerSerial) {
-      return getHex(getValueHex((certificate as { serialNumber?: unknown }).serialNumber)) === signerSerial;
+      return getHex(certificate.serialNumber.valueBlock.valueHexView) === signerSerial;
     }
 
     return signerKeyIdentifier !== null && getSubjectKeyIdentifier(certificate) === signerKeyIdentifier;
@@ -159,39 +135,20 @@ function getPkiJsSignerCertificate(signatureBytes: Uint8Array): SignerCertificat
     throw new Error("The NuGet signer certificate was not found in the CMS certificate set.");
   }
 
-  return {
-    certificate: Certificate.from_asn1(Buffer.from(signerCertificate.toSchema().toBER(false))),
-    embeddedCertificates: certificates.map((certificate) =>
-      Certificate.from_asn1(Buffer.from(certificate.toSchema().toBER(false))),
-    ),
-  };
-}
-
-function getSignerCertificate(signatureBytes: Uint8Array): SignerCertificate {
-  try {
-    return getJkurwaSignerCertificate(signatureBytes);
-  } catch (jkurwaError) {
-    try {
-      return getPkiJsSignerCertificate(signatureBytes);
-    } catch (pkiJsError) {
-      throw new Error(
-        `CMS parsing failed with jkurwa (${(jkurwaError as Error).message}) ` +
-          `and PKI.js (${(pkiJsError as Error).message}).`, { cause: pkiJsError },
-      );
-    }
-  }
+  return { certificate: signerCertificate, embeddedCertificates: certificates };
 }
 
 function buildCertificateChain(signerCertificate: SignerCertificate): Certificate[] {
   const remainingCertificates = signerCertificate.embeddedCertificates.filter(
-    (certificate) => certificate.serial.toString(16) !== signerCertificate.certificate.serial.toString(16),
+    (certificate) => certificate !== signerCertificate.certificate,
   );
   const chain = [signerCertificate.certificate];
   let currentCertificate = signerCertificate.certificate;
 
   while (true) {
+    const issuerName = formatDistinguishedName(currentCertificate.issuer);
     const parentIndex = remainingCertificates.findIndex(
-      (certificate) => certificate.subjectDN() === currentCertificate.issuerDN(),
+      (certificate) => formatDistinguishedName(certificate.subject) === issuerName,
     );
 
     if (parentIndex === -1) {
@@ -205,10 +162,8 @@ function buildCertificateChain(signerCertificate: SignerCertificate): Certificat
   return chain.reverse();
 }
 
-function formatCertificateDate(value: unknown): string {
-  const timestamp = typeof value === "number" ? value : Number(value);
-
-  if (!Number.isFinite(timestamp)) {
+function formatCertificateDate(value: Date): string {
+  if (Number.isNaN(value.getTime())) {
     return String(value);
   }
 
@@ -217,38 +172,34 @@ function formatCertificateDate(value: unknown): string {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date(timestamp));
+  }).format(value);
 }
 
 async function getCertificateDetails(signerCertificate: SignerCertificate): Promise<SigningCertificateDetails> {
   const { certificate, embeddedCertificates } = signerCertificate;
-  const der = new Uint8Array(certificate.as_asn1());
-  const issuerDistinguishedName = certificate.issuerDN();
-  const subjectDistinguishedName = certificate.subjectDN();
+  const der = getCertificateDer(certificate);
+  const issuerDistinguishedName = formatDistinguishedName(certificate.issuer);
+  const subjectDistinguishedName = formatDistinguishedName(certificate.subject);
   const chainCertificates = buildCertificateChain(signerCertificate);
   const [fingerprint, chain] = await Promise.all([
     sha256Base64Url(der),
-    Promise.all(chainCertificates.map(async (chainCertificate) => {
-      const chainDer = new Uint8Array(chainCertificate.as_asn1());
-
-      return {
-        subjectDistinguishedName: chainCertificate.subjectDN(),
-        issuerDistinguishedName: chainCertificate.issuerDN(),
-        serialNumber: chainCertificate.serial.toString(16),
-        validFrom: formatCertificateDate(chainCertificate.valid.from),
-        validTo: formatCertificateDate(chainCertificate.valid.to),
-        fingerprint: await sha256Base64Url(chainDer),
-        isSigner: chainCertificate.serial.toString(16) === certificate.serial.toString(16),
-      };
-    })),
+    Promise.all(chainCertificates.map(async (chainCertificate) => ({
+      subjectDistinguishedName: formatDistinguishedName(chainCertificate.subject),
+      issuerDistinguishedName: formatDistinguishedName(chainCertificate.issuer),
+      serialNumber: getSerialNumber(chainCertificate),
+      validFrom: formatCertificateDate(chainCertificate.notBefore.value),
+      validTo: formatCertificateDate(chainCertificate.notAfter.value),
+      fingerprint: await sha256Base64Url(getCertificateDer(chainCertificate)),
+      isSigner: chainCertificate === certificate,
+    }))),
   ]);
 
   return {
     issuerDistinguishedName,
     subjectDistinguishedName,
-    serialNumber: certificate.serial.toString(16),
-    validFrom: formatCertificateDate(certificate.valid.from),
-    validTo: formatCertificateDate(certificate.valid.to),
+    serialNumber: getSerialNumber(certificate),
+    validFrom: formatCertificateDate(certificate.notBefore.value),
+    validTo: formatCertificateDate(certificate.notAfter.value),
     fingerprint,
     isSelfSigned: embeddedCertificates.length === 1,
     der,

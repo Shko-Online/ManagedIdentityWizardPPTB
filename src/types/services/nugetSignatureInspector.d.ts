@@ -14,26 +14,7 @@
    limitations under the License.
  */
 
-interface CmsSignerIdentifier {
-  type?: string;
-  value?: {
-    serialNumber?: { toString(radix?: number): string } | string | number;
-  };
-}
-
-interface CmsSignerInfo {
-  sid?: CmsSignerIdentifier;
-}
-
-interface CmsSignedData {
-  certificate?: unknown[];
-  signerInfos?: CmsSignerInfo[];
-}
-
-interface CmsContentInfo {
-  contentType?: string;
-  content?: CmsSignedData;
-}
+import type { Certificate } from "pkijs";
 
 export interface SigningCertificateDetails {
   issuerDistinguishedName: string;
@@ -61,7 +42,7 @@ export type NugetSignatureInspection =
   | { signatureStatus: "unsigned" }
   | { signatureStatus: "signed"; certificate: SigningCertificateDetails };
 
-interface SignerCertificate {
+export interface SignerCertificate {
   certificate: Certificate;
   embeddedCertificates: Certificate[];
 }
