@@ -36,7 +36,7 @@ Best regards,
 
     // const mailtoLink = `mailto:sales@shko.online?subject=${encodeForMailto(subject)}&body=${encodeForMailto(body)}`;
     if (toolboxAPI) {
-      toolboxAPI.utils.copyToClipboard('sales@shko.online');
+      void toolboxAPI.utils.copyToClipboard('sales@shko.online');
     }
   };
   return (

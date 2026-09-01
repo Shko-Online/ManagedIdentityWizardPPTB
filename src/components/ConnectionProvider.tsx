@@ -60,7 +60,7 @@ const ConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
         case "connection:updated":
         case "connection:created":
         case "connection:deleted":
-          refreshConnection();
+          void refreshConnection();
           break;
       }
     },
@@ -73,7 +73,7 @@ const ConnectionProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
 
     toolboxAPI.events.on(handleEvent);
-    refreshConnection();
+    void refreshConnection();
     return () => {
       toolboxAPI.events.off(handleEvent);
     };

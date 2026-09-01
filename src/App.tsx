@@ -61,7 +61,7 @@ function App() {
                 console.error('Error getting theme:', error);
             }
         };
-        syncTheme();
+        void syncTheme();
 
         return () => {
             toolboxAPI.events.off(handleThemeChange);

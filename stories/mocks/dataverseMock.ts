@@ -164,7 +164,7 @@ export function createDataverseAPIMock(): DataverseAPIMock {
 
       case 'InitializeFileBlocksDownload': {
         const target = parameters.Target as Record<string, unknown> | undefined;
-        const packageId = String(target?.pluginpackageid ?? '');
+        const packageId = target?.pluginpackageid as string ?? '';
         const fileName = PACKAGE_BINARIES[packageId];
 
         if (!fileName) {

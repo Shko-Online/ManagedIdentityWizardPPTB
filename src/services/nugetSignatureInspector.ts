@@ -81,7 +81,7 @@ function formatDistinguishedName(name: RelativeDistinguishedNames): string {
       const attributeType = distinguishedNameAttributeTypes[typeAndValue.type] ?? typeAndValue.type;
       const attributeValue = (typeAndValue.value as { valueBlock?: { value?: unknown } }).valueBlock?.value;
 
-      return `${attributeType}=${attributeValue === undefined ? "" : String(attributeValue)}`;
+      return `${attributeType}=${attributeValue as string ?? ""}`;
     })
     .join("/");
 }

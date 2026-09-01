@@ -231,7 +231,7 @@ export const PluginPackageInspector: React.FC = () => {
       return;
     }
 
-    loadSolutions();
+    void loadSolutions();
   }, [connection, loadSolutions, addLog]);
 
   useEffect(() => {
@@ -278,7 +278,7 @@ export const PluginPackageInspector: React.FC = () => {
       }
     };
 
-    loadSolutionPackages();
+    void loadSolutionPackages();
     return () => {
       isCurrent = false;
     };
@@ -316,12 +316,12 @@ export const PluginPackageInspector: React.FC = () => {
   }, [connection, dataverseAPI, addLog]);
 
   useEffect(() => {
-    if (!connection) {
+    if (!connection || !dataverseAPI) {
       return;
     }
 
-    loadOrganizationIdentity();
-  }, [connection, dataverseAPI, addLog, loadOrganizationIdentity]);
+    void loadOrganizationIdentity();
+  }, [connection, dataverseAPI, loadOrganizationIdentity]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -366,7 +366,7 @@ export const PluginPackageInspector: React.FC = () => {
       }
     };
 
-    calculateIdentity();
+    void calculateIdentity();
     return () => {
       isCurrent = false;
     };
