@@ -93,7 +93,7 @@ const useStyles = makeStyles({
   table: {
     tableLayout: "fixed",
     width: "100%",
-    minWidth: "1360px",
+    minWidth: "1540px",
   },
   tableHeader: {
     "& th": {
@@ -164,8 +164,8 @@ const useStyles = makeStyles({
     position: "sticky",
     right: 0,
     zIndex: 1,
-    width: "120px",
-    minWidth: "110px",
+    width: "200px",
+    minWidth: "190px",
     backgroundColor: tokens.colorNeutralBackground1,
   },
   assemblyNameColumn: {
@@ -199,6 +199,53 @@ const useStyles = makeStyles({
     whiteSpace: "nowrap",
   },
   assemblyActionColumn: {
+    position: "sticky",
+    right: 0,
+    zIndex: 1,
+    width: "200px",
+    minWidth: "190px",
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+  customizableColumn: {
+    width: "180px",
+    minWidth: "180px",
+    textAlign: "center",
+  },
+  identityTable: {
+    tableLayout: "fixed",
+    width: "100%",
+    minWidth: "1880px",
+  },
+  identityNameColumn: {
+    width: "240px",
+    minWidth: "150px",
+  },
+  identityGuidColumn: {
+    width: "290px",
+    minWidth: "220px",
+    fontFamily: tokens.fontFamilyMonospace,
+    fontSize: tokens.fontSizeBase200,
+  },
+  identityChoiceColumn: {
+    width: "180px",
+    minWidth: "140px",
+  },
+  identityVersionColumn: {
+    width: "120px",
+    minWidth: "110px",
+    textAlign: "center",
+  },
+  identityStatusColumn: {
+    width: "110px",
+    minWidth: "100px",
+    textAlign: "center",
+  },
+  identityManagedColumn: {
+    width: "90px",
+    minWidth: "90px",
+    textAlign: "center",
+  },
+  identityActionColumn: {
     position: "sticky",
     right: 0,
     zIndex: 1,

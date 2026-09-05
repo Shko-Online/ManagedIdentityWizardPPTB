@@ -14,22 +14,18 @@
    limitations under the License.
  */
 
-import type {
-  ManagedIdentityRecord,
-  PluginAssemblyRecord,
-  PluginPackageRecord,
-} from "../../services/pluginPackageService";
+import type { ManagedIdentityInput, ManagedIdentityRecord } from "../../services/pluginPackageService";
 
-export interface ManagedIdentityDetailsPopupProps {
-  managedIdentity: ManagedIdentityRecord;
-  /** Plugin packages currently bound to this identity. */
-  associatedPackages: PluginPackageRecord[];
-  /** Plugin assemblies currently bound to this identity. */
-  associatedAssemblies: PluginAssemblyRecord[];
-  tenantId: string;
+export interface ManagedIdentityEditorDialogProps {
+  /** Omitted opens the dialog in create mode. */
+  managedIdentity?: ManagedIdentityRecord;
+  defaultTenantId: string;
   environmentId: string;
-  /** Failure from the last copy attempt, shown inside the popup. */
-  copyError: string | null;
-  onCopy: (label: string, value: string) => void;
+  isSaving: boolean;
+  /** Failure from the last save attempt, shown inside the dialog. */
+  saveError: string | null;
+  onCreate: (input: ManagedIdentityInput) => void;
+  /** Only the fields the user actually changed. */
+  onUpdate: (changes: Partial<ManagedIdentityInput>) => void;
   onClose: () => void;
 }

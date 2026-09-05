@@ -19,6 +19,8 @@ import {
   ArrowSortUp24Regular,
   CheckmarkCircle24Regular,
   DocumentSearch24Regular,
+  Info24Regular,
+  PersonKey24Regular,
   Save24Regular,
 } from "@fluentui/react-icons";
 import {
@@ -48,6 +50,7 @@ type PackageSortKey =
   | "createdOn"
   | "modifiedOn"
   | "isManaged"
+  | "isCustomizable"
   | "managedIdentity";
 
 type PluginPackageTableProps = {
@@ -62,6 +65,8 @@ type PluginPackageTableProps = {
   onHoverInspect: (id: string | null) => void;
   onInspect: (packageRecord: PluginPackageRecord) => void;
   onExport: (packageRecord: PluginPackageRecord) => void;
+  onManageIdentity: (packageRecord: PluginPackageRecord) => void;
+  onViewDetails: (packageRecord: PluginPackageRecord) => void;
   onSort: (sortKey: PackageSortKey) => void;
 };
 
@@ -77,6 +82,8 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
   onHoverInspect,
   onInspect,
   onExport,
+  onManageIdentity,
+  onViewDetails,
   onSort,
 }) => {
   const styles = useStyles();
@@ -110,6 +117,7 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
             <TableHeaderCell className={styles.createdColumn}>{sortableHeader("Created", "createdOn")}</TableHeaderCell>
             <TableHeaderCell className={styles.modifiedColumn}>{sortableHeader("Modified", "modifiedOn")}</TableHeaderCell>
             <TableHeaderCell className={styles.managedColumn}>{sortableHeader("Type", "isManaged")}</TableHeaderCell>
+            <TableHeaderCell className={styles.customizableColumn}>{sortableHeader("Customizable", "isCustomizable")}</TableHeaderCell>
             <TableHeaderCell className={styles.identityColumn}>{sortableHeader("Managed identity", "managedIdentity")}</TableHeaderCell>
             <TableHeaderCell className={styles.actionColumn}>Actions</TableHeaderCell>
           </TableRow>
@@ -126,6 +134,9 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
               <TableCell className={styles.managedColumn}>
                 <Badge appearance="tint" color={packageRecord.isManaged ? "brand" : "informative"} title={packageRecord.isManaged ? "Managed" : "Unmanaged"}>{packageRecord.isManaged ? "M" : "U"}</Badge>
               </TableCell>
+              <TableCell className={styles.customizableColumn}>
+                <Badge appearance="tint" color={packageRecord.isCustomizable ? "success" : "danger"} title={packageRecord.isCustomizable ? "Customizations are allowed" : "This package does not allow customizations"}>{packageRecord.isCustomizable ? "Yes" : "No"}</Badge>
+              </TableCell>
               <TableCell className={styles.identityColumn}>
                 {packageRecord.managedIdentity ? (
                   <EllipsisText
@@ -141,8 +152,10 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
               </TableCell>
               <TableCell className={styles.actionColumn}>
                 <div className={styles.actionButtons}>
+                  <Button appearance="subtle" icon={<Info24Regular />} aria-label={`View ${packageRecord.name} details`} title={`View ${packageRecord.name} details`} onClick={() => onViewDetails(packageRecord)} />
                   <Button appearance="subtle" icon={inspectedComponentId === packageRecord.id && hasInspection && hoveredInspectId !== packageRecord.id ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} /> : <DocumentSearch24Regular />} aria-label={inspectedComponentId === packageRecord.id && hasInspection ? `Inspect ${packageRecord.name} again` : `Inspect ${packageRecord.name}`} title={inspectedComponentId === packageRecord.id && hasInspection ? "Inspect again" : `Inspect ${packageRecord.name}`} onMouseEnter={() => onHoverInspect(packageRecord.id)} onMouseLeave={() => onHoverInspect(null)} onClick={() => onInspect(packageRecord)} disabled={isInspecting || isExporting} />
                   <Button appearance="subtle" icon={<Save24Regular />} aria-label={`Export ${packageRecord.name}`} title={`Export ${packageRecord.name}`} onClick={() => onExport(packageRecord)} disabled={isInspecting || isExporting} />
+                  <Button appearance="subtle" icon={<PersonKey24Regular />} aria-label={`Manage the managed identity of ${packageRecord.name}`} title={`Manage the managed identity of ${packageRecord.name}`} onClick={() => onManageIdentity(packageRecord)} disabled={isInspecting || isExporting} />
                 </div>
               </TableCell>
             </TableRow>

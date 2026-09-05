@@ -15,18 +15,15 @@
  */
 
 import {
+  Add24Regular,
   ArrowSync24Regular,
-  Certificate24Regular,
-  Copy24Regular,
   Dismiss24Regular,
   FolderOpen24Regular,
   Info24Regular,
   MoreHorizontal24Regular,
-  PersonKey24Regular,
   Settings24Regular,
 } from "@fluentui/react-icons";
 import {
-  Badge,
   Button,
   Card,
   CardHeader,
@@ -38,8 +35,6 @@ import {
   MenuList,
   MenuPopover,
   MenuTrigger,
-  MessageBar,
-  MessageBarBody,
   Spinner,
   Text,
 } from "@fluentui/react-components";
@@ -47,9 +42,10 @@ import {
   type InspectedComponentType,
   createNameMatcher,
   getAssemblyExportFileName,
-  getCertificateIdentity,
+  getCredentialSourceLabel,
   getExportFileName,
-  getSignedLabel,
+  getManagedIdentityStateLabel,
+  getSubjectScopeLabel,
   hasTenantMismatch,
 } from "../services/pluginPackageInspector";
 import {
@@ -59,18 +55,25 @@ import {
   cloudConfigurations,
 } from "../services/managedIdentitySubject";
 import {
+  type ManagedIdentityInput,
   type ManagedIdentityRecord,
   type PluginAssemblyRecord,
+  type PluginComponentEntity,
   type PluginComponentTypes,
   type PluginPackageRecord,
   type SolutionRecord,
+  UNNAMED_MANAGED_IDENTITY,
+  createManagedIdentity,
   getPluginAssemblyContent,
   getPluginComponentTypes,
   getPluginPackageContent,
   getSolutionComponentObjectIds,
+  listManagedIdentities,
   listPluginAssemblies,
   listPluginPackages,
   listPluginSolutions,
+  setComponentManagedIdentity,
+  updateManagedIdentity,
 } from "../services/pluginPackageService";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { Buffer } from "buffer";
@@ -80,13 +83,22 @@ import DataverseAPIContext from "../context/DataverseAPIContext";
 import EllipsisText from "./EllipsisText";
 import { LogsContext } from "../context/LogsContext";
 import { ManagedIdentityDetailsPopup } from "./ManagedIdentityDetailsPopup";
+import { ManagedIdentityEditorDialog } from "./ManagedIdentityEditorDialog";
+import { ManagedIdentityPickerDialog } from "./ManagedIdentityPickerDialog";
+import {
+  type ManagedIdentitySortKey,
+  ManagedIdentityTable,
+} from "./ManagedIdentityTable";
 import MenuRootContext from "../context/MenuRootContext";
 import { NugetSignatureInspection } from "../types/services/nugetSignatureInspector";
 import { PluginAssemblyTable } from "./PluginAssemblyTable";
-import { PluginComponentTabs } from "./PluginComponentTabs";
+import { PluginComponentDetailsPopup } from "./PluginComponentDetailsPopup";
+import type { PluginComponentDetails } from "../types/components/PluginComponentDetailsPopup";
+import { type PluginComponentTab, PluginComponentTabs } from "./PluginComponentTabs";
 import { PluginPackageTable } from "./PluginPackageTable";
 import { SolutionPickerDialog } from "./SolutionPickerDialog";
 import ToolboxAPIContext from "../context/ToolboxAPIContext";
+import { formatGuidInput } from "../utils/guid";
 import { inspectNugetSignature } from "../services/nugetSignatureInspector";
 import { inspectPluginAssemblySignature } from "../services/pluginAssemblySignatureInspector";
 import useStyles from "../styles/PluginPackageInspector";
@@ -99,6 +111,7 @@ type PackageSortKey =
   | "createdOn"
   | "modifiedOn"
   | "isManaged"
+  | "isCustomizable"
   | "managedIdentity";
 type AssemblySortKey =
   | "name"
@@ -106,25 +119,61 @@ type AssemblySortKey =
   | "createdOn"
   | "modifiedOn"
   | "isManaged"
+  | "isCustomizable"
   | "managedIdentity";
 
 type PluginPackageInspectorProps = {
   onInspectionRequested?: (componentName: string | null, componentType: "package" | "assembly" | "local") => void;
 };
 
-function formatGuidInput(value: string): string {
-  const hex = value.replace(/[^0-9a-f]/gi, "").slice(0, 32);
-  const groupLengths = [8, 4, 4, 4, 12];
-  let offset = 0;
+type IdentityAssociationTarget = {
+  entityLogicalName: PluginComponentEntity;
+  componentType: InspectedComponentType;
+  id: string;
+  name: string;
+  isCustomizable: boolean;
+  managedIdentityId: string | null;
+};
 
-  return groupLengths
-    .map((length) => {
-      const group = hex.slice(offset, offset + length);
-      offset += length;
-      return group;
-    })
-    .filter(Boolean)
-    .join("-");
+const managedIdentityFieldLabels: Record<keyof ManagedIdentityInput, string> = {
+  name: "name",
+  applicationId: "application ID",
+  tenantId: "tenant ID",
+  credentialSource: "credential source",
+  subjectScope: "subject scope",
+  version: "FIC subject version",
+};
+
+function toPackageDetails(packageRecord: PluginPackageRecord): PluginComponentDetails {
+  return {
+    componentType: "package",
+    entityLogicalName: "pluginpackage",
+    id: packageRecord.id,
+    name: packageRecord.name,
+    version: packageRecord.version,
+    uniqueName: packageRecord.uniqueName,
+    packageFileName: packageRecord.packageName,
+    isManaged: packageRecord.isManaged,
+    isCustomizable: packageRecord.isCustomizable,
+    managedIdentity: packageRecord.managedIdentity,
+    hasManagedIdentity: packageRecord.managedIdentityId !== null,
+  };
+}
+
+function toAssemblyDetails(assemblyRecord: PluginAssemblyRecord): PluginComponentDetails {
+  return {
+    componentType: "assembly",
+    entityLogicalName: "pluginassembly",
+    id: assemblyRecord.id,
+    name: assemblyRecord.name,
+    version: assemblyRecord.version,
+    uniqueName: null,
+    packageFileName: null,
+    isManaged: assemblyRecord.isManaged,
+    isCustomizable: assemblyRecord.isCustomizable,
+    managedIdentity: assemblyRecord.managedIdentity,
+    hasManagedIdentity: assemblyRecord.managedIdentityId !== null,
+  };
 }
 
 function getManagedIdentitySortValue(record: {
@@ -141,9 +190,8 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   const { menuRoot: menuMountNode } = useContext(MenuRootContext);
   const [packages, setPackages] = useState<PluginPackageRecord[]>([]);
   const [assemblies, setAssemblies] = useState<PluginAssemblyRecord[]>([]);
-  const [activeTab, setActiveTab] = useState<"packages" | "assemblies">(
-    "packages",
-  );
+  const [identities, setIdentities] = useState<ManagedIdentityRecord[]>([]);
+  const [activeTab, setActiveTab] = useState<PluginComponentTab>("packages");
   const [currentPage, setCurrentPage] = useState(1);
   const [nameFilter, setNameFilter] = useState("");
   const [packageSortKey, setPackageSortKey] =
@@ -152,6 +200,22 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   const [assemblySortKey, setAssemblySortKey] =
     useState<AssemblySortKey>("createdOn");
   const [assemblySortDescending, setAssemblySortDescending] = useState(true);
+  const [identitySortKey, setIdentitySortKey] =
+    useState<ManagedIdentitySortKey>("name");
+  const [identitySortDescending, setIdentitySortDescending] = useState(false);
+  const [editedIdentity, setEditedIdentity] =
+    useState<ManagedIdentityRecord | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [associationTarget, setAssociationTarget] =
+    useState<IdentityAssociationTarget | null>(null);
+  const [isSavingIdentity, setIsSavingIdentity] = useState(false);
+  const [identitySaveError, setIdentitySaveError] = useState<string | null>(null);
+  const [associationError, setAssociationError] = useState<string | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsComponent, setDetailsComponent] =
+    useState<PluginComponentDetails | null>(null);
+  const [detailsIdentity, setDetailsIdentity] =
+    useState<ManagedIdentityRecord | null>(null);
   const [solutions, setSolutions] = useState<SolutionRecord[]>([]);
   const [isSolutionPickerOpen, setIsSolutionPickerOpen] = useState(false);
   const [componentTypes, setComponentTypes] =
@@ -176,25 +240,14 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   const [isExportingPackageId, setIsExportingPackageId] = useState<
     string | null
   >(null);
-  const [inspectedPackageName, setInspectedPackageName] = useState<
-    string | null
-  >(null);
   const [inspectedComponentId, setInspectedComponentId] = useState<
     string | null
   >(null);
   const [hoveredInspectId, setHoveredInspectId] = useState<string | null>(null);
-  const [inspectedComponentType, setInspectedComponentType] =
-    useState<InspectedComponentType>("package");
-  const [inspectedManagedIdentity, setInspectedManagedIdentity] =
-    useState<ManagedIdentityRecord | null>(null);
-  const [inspectedHasManagedIdentity, setInspectedHasManagedIdentity] =
-    useState(false);
   const [inspection, setInspection] = useState<NugetSignatureInspection | null>(
     null,
   );
   const [isCertificateDetailsOpen, setIsCertificateDetailsOpen] =
-    useState(false);
-  const [isManagedIdentityDetailsOpen, setIsManagedIdentityDetailsOpen] =
     useState(false);
   const { addLog } = useContext(LogsContext);
   const { connection } = useContext(ConnectionContext);
@@ -391,11 +444,8 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
     setError(null);
     setInspection(null);
     setInspectedComponentId(null);
-    setInspectedPackageName(null);
-    setInspectedManagedIdentity(null);
-    setInspectedHasManagedIdentity(false);
     setIsCertificateDetailsOpen(false);
-    setIsManagedIdentityDetailsOpen(false);
+    setDetailsComponent(null);
     setIdentityResult(null);
 
     try {
@@ -409,6 +459,18 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
         `Loaded ${packageRecords.length} plugin package(s) and ${assemblyRecords.length} plugin assembly(s).`,
         "success",
       );
+
+      try {
+        const identityRecords = await listManagedIdentities(dataverseAPI);
+        setIdentities(identityRecords);
+        addLog(`Loaded ${identityRecords.length} managed identity(s).`, "success");
+      } catch (identityError) {
+        setIdentities([]);
+        addLog(
+          `Unable to load managed identities: ${(identityError as Error).message}`,
+          "warning",
+        );
+      }
     } catch (loadError) {
       const message = `Unable to load plugin packages: ${(loadError as Error).message}`;
       setError(message);
@@ -528,14 +590,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
 
       setIsInspectingPackageId(packageRecord.id);
       setError(null);
+      setDetailsError(null);
       setInspection(null);
       setInspectedComponentId(null);
-      setInspectedPackageName(packageRecord.name);
-      setInspectedComponentType("package");
-      setInspectedManagedIdentity(packageRecord.managedIdentity);
-      setInspectedHasManagedIdentity(packageRecord.managedIdentityId !== null);
       setIsCertificateDetailsOpen(false);
-      setIsManagedIdentityDetailsOpen(false);
+      setDetailsComponent(toPackageDetails(packageRecord));
 
       if (packageRecord.managedIdentity?.tenantId) {
         const identityTenantId = packageRecord.managedIdentity.tenantId;
@@ -558,7 +617,7 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
         );
       } catch (inspectionError) {
         const message = `Unable to inspect ${packageRecord.name}: ${(inspectionError as Error).message}`;
-        setError(message);
+        setDetailsError(message);
         addLog(message, "error");
       } finally {
         setIsInspectingPackageId(null);
@@ -580,14 +639,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
 
       setIsInspectingPackageId(assemblyRecord.id);
       setError(null);
+      setDetailsError(null);
       setInspection(null);
       setInspectedComponentId(null);
-      setInspectedPackageName(assemblyRecord.name);
-      setInspectedComponentType("assembly");
-      setInspectedManagedIdentity(assemblyRecord.managedIdentity);
-      setInspectedHasManagedIdentity(assemblyRecord.managedIdentityId !== null);
       setIsCertificateDetailsOpen(false);
-      setIsManagedIdentityDetailsOpen(false);
+      setDetailsComponent(toAssemblyDetails(assemblyRecord));
 
       if (assemblyRecord.managedIdentity?.tenantId) {
         const identityTenantId = assemblyRecord.managedIdentity.tenantId;
@@ -610,7 +666,7 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
         );
       } catch (inspectionError) {
         const message = `Unable to inspect ${assemblyRecord.name}: ${(inspectionError as Error).message}`;
-        setError(message);
+        setDetailsError(message);
         addLog(message, "error");
       } finally {
         setIsInspectingPackageId(null);
@@ -633,12 +689,8 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
     setError(null);
     setInspection(null);
     setInspectedComponentId(null);
-    setInspectedPackageName(null);
-    setInspectedComponentType("package");
-    setInspectedManagedIdentity(null);
-    setInspectedHasManagedIdentity(false);
     setIsCertificateDetailsOpen(false);
-    setIsManagedIdentityDetailsOpen(false);
+    setDetailsComponent(null);
 
     try {
       const filePath = await toolboxAPI.fileSystem.selectPath({
@@ -664,8 +716,19 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
 
       setInspection(result);
       setInspectedComponentId("local");
-      setInspectedPackageName(packageName);
-      setInspectedComponentType(isAssembly ? "assembly" : "package");
+      setDetailsComponent({
+        componentType: isAssembly ? "assembly" : "package",
+        entityLogicalName: null,
+        id: null,
+        name: packageName,
+        version: "",
+        uniqueName: null,
+        packageFileName: null,
+        isManaged: false,
+        isCustomizable: true,
+        managedIdentity: null,
+        hasManagedIdentity: false,
+      });
       addLog(
         `${packageName} is ${result.signatureStatus === "signed" ? "signed" : "unsigned"}.`,
         result.signatureStatus === "signed" ? "success" : "warning",
@@ -679,23 +742,185 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
     }
   }, [toolboxAPI, addLog, onInspectionRequested]);
 
-  const copyIdentifier = useCallback(
-    async (label: string, value: string) => {
+  /** Resolves to a failure message so each caller can surface it where the user can see it. */
+  const copyToClipboard = useCallback(
+    async (label: string, value: string): Promise<string | null> => {
       if (!toolboxAPI) {
-        return;
+        return null;
       }
 
       try {
         await toolboxAPI.utils.copyToClipboard(value);
         addLog(`${label} copied to the clipboard.`, "success");
+        return null;
       } catch (copyError) {
         const message = `Unable to copy ${label.toLowerCase()}: ${(copyError as Error).message}`;
-        setError(message);
         addLog(message, "error");
+        return message;
       }
     },
     [toolboxAPI, addLog],
   );
+
+  const copyFromDetails = useCallback(
+    async (label: string, value: string) => {
+      const message = await copyToClipboard(label, value);
+
+      if (message) {
+        setDetailsError(message);
+      }
+    },
+    [copyToClipboard],
+  );
+
+  const reloadRecords = useCallback(async () => {
+    if (!dataverseAPI) {
+      return;
+    }
+
+    const [packageRecords, assemblyRecords, identityRecords] = await Promise.all([
+      listPluginPackages(dataverseAPI),
+      listPluginAssemblies(dataverseAPI),
+      listManagedIdentities(dataverseAPI),
+    ]);
+    setPackages(packageRecords);
+    setAssemblies(assemblyRecords);
+    setIdentities(identityRecords);
+  }, [dataverseAPI]);
+
+  const createIdentity = useCallback(
+    async (input: ManagedIdentityInput) => {
+      if (!dataverseAPI) {
+        return;
+      }
+
+      setIsSavingIdentity(true);
+      setIdentitySaveError(null);
+      const identityLabel = input.name.trim() || UNNAMED_MANAGED_IDENTITY;
+
+      try {
+        const createdId = await createManagedIdentity(dataverseAPI, input);
+        addLog(`Created managed identity ${identityLabel}.`, "success");
+
+        if (associationTarget) {
+          await setComponentManagedIdentity(
+            dataverseAPI,
+            associationTarget.entityLogicalName,
+            associationTarget.id,
+            createdId,
+          );
+          addLog(
+            `Associated ${identityLabel} with ${associationTarget.name}.`,
+            "success",
+          );
+          setAssociationTarget(null);
+        }
+
+        setIsEditorOpen(false);
+        setEditedIdentity(null);
+        await reloadRecords();
+      } catch (saveError) {
+        const message = `Unable to create managed identity ${identityLabel}: ${(saveError as Error).message}`;
+        setIdentitySaveError(message);
+        addLog(message, "error");
+      } finally {
+        setIsSavingIdentity(false);
+      }
+    },
+    [dataverseAPI, associationTarget, reloadRecords, addLog],
+  );
+
+  const updateIdentity = useCallback(
+    async (changes: Partial<ManagedIdentityInput>) => {
+      if (!dataverseAPI || !editedIdentity) {
+        return;
+      }
+
+      setIsSavingIdentity(true);
+      setIdentitySaveError(null);
+
+      try {
+        await updateManagedIdentity(dataverseAPI, editedIdentity.id, changes);
+        const changedLabels = Object.keys(changes)
+          .map((field) => managedIdentityFieldLabels[field as keyof ManagedIdentityInput])
+          .join(", ");
+        addLog(
+          `Updated ${changedLabels} on managed identity ${editedIdentity.name}.`,
+          "success",
+        );
+        setIsEditorOpen(false);
+        setEditedIdentity(null);
+        await reloadRecords();
+      } catch (saveError) {
+        const message = `Unable to save managed identity ${editedIdentity.name}: ${(saveError as Error).message}`;
+        setIdentitySaveError(message);
+        addLog(message, "error");
+      } finally {
+        setIsSavingIdentity(false);
+      }
+    },
+    [dataverseAPI, editedIdentity, reloadRecords, addLog],
+  );
+
+  const applyAssociation = useCallback(
+    async (managedIdentityId: string | null) => {
+      if (!dataverseAPI || !associationTarget) {
+        return;
+      }
+
+      const target = associationTarget;
+      setIsSavingIdentity(true);
+      setAssociationError(null);
+
+      try {
+        await setComponentManagedIdentity(
+          dataverseAPI,
+          target.entityLogicalName,
+          target.id,
+          managedIdentityId,
+        );
+        addLog(
+          managedIdentityId
+            ? `Associated ${identities.find((identity) => identity.id === managedIdentityId)?.name ?? "managed identity"} with ${target.name}.`
+            : `Removed the managed identity association from ${target.name}.`,
+          "success",
+        );
+        setAssociationTarget(null);
+        await reloadRecords();
+      } catch (associationError) {
+        const message = `Unable to update the managed identity of ${target.name}: ${(associationError as Error).message}`;
+        setAssociationError(message);
+        addLog(message, "error");
+      } finally {
+        setIsSavingIdentity(false);
+      }
+    },
+    [dataverseAPI, associationTarget, identities, reloadRecords, addLog],
+  );
+
+  const manageePackageIdentity = useCallback((packageRecord: PluginPackageRecord) => {
+    setAssociationError(null);
+    setAssociationTarget({
+      entityLogicalName: "pluginpackage",
+      componentType: "package",
+      id: packageRecord.id,
+      name: packageRecord.name,
+      isCustomizable: packageRecord.isCustomizable,
+      managedIdentityId: packageRecord.managedIdentityId,
+    });
+  }, []);
+
+  const manageAssemblyIdentity = useCallback((assemblyRecord: PluginAssemblyRecord) => {
+    setAssociationError(null);
+    setAssociationTarget({
+      entityLogicalName: "pluginassembly",
+      componentType: "assembly",
+      id: assemblyRecord.id,
+      name: assemblyRecord.name,
+      isCustomizable: assemblyRecord.isCustomizable,
+      managedIdentityId: assemblyRecord.managedIdentityId,
+    });
+  }, []);
 
   const solutionPackages =
     selectedSolutionId && solutionComponentIds
@@ -719,47 +944,51 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   const visibleAssemblies = solutionAssemblies.filter((assemblyRecord) =>
     nameMatcher(assemblyRecord.name),
   );
+  const visibleIdentities = identities.filter((identity) =>
+    nameMatcher(identity.name),
+  );
+  const identityUsageCounts = new Map<string, number>();
+  for (const componentRecord of [...packages, ...assemblies]) {
+    if (componentRecord.managedIdentityId) {
+      identityUsageCounts.set(
+        componentRecord.managedIdentityId,
+        (identityUsageCounts.get(componentRecord.managedIdentityId) ?? 0) + 1,
+      );
+    }
+  }
   const sortedPackages = visiblePackages.slice().sort((left, right) => {
-    const leftValue =
-      packageSortKey === "isManaged"
-        ? left.isManaged
-          ? "managed"
-          : "unmanaged"
-        : packageSortKey === "managedIdentity"
-          ? getManagedIdentitySortValue(left)
-          : left[packageSortKey] ?? "";
-    const rightValue =
-      packageSortKey === "isManaged"
-        ? right.isManaged
-          ? "managed"
-          : "unmanaged"
-        : packageSortKey === "managedIdentity"
-          ? getManagedIdentitySortValue(right)
-          : right[packageSortKey] ?? "";
-    const comparison = leftValue.localeCompare(rightValue, undefined, {
+    const toComparable = (packageRecord: PluginPackageRecord) => {
+      switch (packageSortKey) {
+        case "isManaged":
+          return packageRecord.isManaged ? "managed" : "unmanaged";
+        case "isCustomizable":
+          return packageRecord.isCustomizable ? "yes" : "no";
+        case "managedIdentity":
+          return getManagedIdentitySortValue(packageRecord);
+        default:
+          return packageRecord[packageSortKey] ?? "";
+      }
+    };
+    const comparison = toComparable(left).localeCompare(toComparable(right), undefined, {
       numeric: true,
       sensitivity: "base",
     });
     return packageSortDescending ? -comparison : comparison;
   });
   const sortedAssemblies = visibleAssemblies.slice().sort((left, right) => {
-    const leftValue =
-      assemblySortKey === "isManaged"
-        ? left.isManaged
-          ? "managed"
-          : "unmanaged"
-        : assemblySortKey === "managedIdentity"
-          ? getManagedIdentitySortValue(left)
-          : left[assemblySortKey];
-    const rightValue =
-      assemblySortKey === "isManaged"
-        ? right.isManaged
-          ? "managed"
-          : "unmanaged"
-        : assemblySortKey === "managedIdentity"
-          ? getManagedIdentitySortValue(right)
-          : right[assemblySortKey];
-    const comparison = leftValue.localeCompare(rightValue, undefined, {
+    const toComparable = (assemblyRecord: PluginAssemblyRecord) => {
+      switch (assemblySortKey) {
+        case "isManaged":
+          return assemblyRecord.isManaged ? "managed" : "unmanaged";
+        case "isCustomizable":
+          return assemblyRecord.isCustomizable ? "yes" : "no";
+        case "managedIdentity":
+          return getManagedIdentitySortValue(assemblyRecord);
+        default:
+          return assemblyRecord[assemblySortKey];
+      }
+    };
+    const comparison = toComparable(left).localeCompare(toComparable(right), undefined, {
       numeric: true,
       sensitivity: "base",
     });
@@ -783,14 +1012,53 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
     setAssemblySortKey(sortKey);
     setAssemblySortDescending(false);
   };
+  const sortIdentitiesBy = (sortKey: ManagedIdentitySortKey) => {
+    if (identitySortKey === sortKey) {
+      setIdentitySortDescending((descending) => !descending);
+      return;
+    }
+
+    setIdentitySortKey(sortKey);
+    setIdentitySortDescending(false);
+  };
+  const sortedIdentities = visibleIdentities.slice().sort((left, right) => {
+    const toComparable = (identity: ManagedIdentityRecord) => {
+      switch (identitySortKey) {
+        case "isManaged":
+          return identity.isManaged ? "managed" : "unmanaged";
+        case "isCustomizable":
+          return identity.isCustomizable ? "yes" : "no";
+        case "credentialSource":
+          return getCredentialSourceLabel(identity.credentialSource);
+        case "subjectScope":
+          return getSubjectScopeLabel(identity.subjectScope);
+        case "stateCode":
+          return getManagedIdentityStateLabel(identity.stateCode);
+        case "version":
+          return String(identity.version ?? "");
+        case "usedBy":
+          return String(identityUsageCounts.get(identity.id) ?? 0);
+        default:
+          return identity[identitySortKey] ?? "";
+      }
+    };
+    const comparison = toComparable(left).localeCompare(toComparable(right), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return identitySortDescending ? -comparison : comparison;
+  });
   const activeRecordCount =
     activeTab === "packages"
       ? sortedPackages.length
-      : sortedAssemblies.length;
+      : activeTab === "assemblies"
+        ? sortedAssemblies.length
+        : sortedIdentities.length;
   const pageCount = Math.max(1, Math.ceil(activeRecordCount / 10));
   const pageStart = (currentPage - 1) * 10;
   const pagedPackages = sortedPackages.slice(pageStart, pageStart + 10);
   const pagedAssemblies = sortedAssemblies.slice(pageStart, pageStart + 10);
+  const pagedIdentities = sortedIdentities.slice(pageStart, pageStart + 10);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -835,14 +1103,28 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
               Inspect local package
             </Button>
             {connection ? (
-              <Button
-                appearance="primary"
-                icon={<ArrowSync24Regular />}
-                onClick={refreshPackages}
-                disabled={isLoading}
-              >
-                Refresh packages
-              </Button>
+              <>
+                <Button
+                  appearance="secondary"
+                  icon={<Add24Regular />}
+                  onClick={() => {
+                    setEditedIdentity(null);
+                    setIdentitySaveError(null);
+                    setIsEditorOpen(true);
+                  }}
+                  disabled={isLoading || isSavingIdentity}
+                >
+                  New managed identity
+                </Button>
+                <Button
+                  appearance="primary"
+                  icon={<ArrowSync24Regular />}
+                  onClick={refreshPackages}
+                  disabled={isLoading}
+                >
+                  Refresh packages
+                </Button>
+              </>
             ) : (
               <Button
                 appearance="secondary"
@@ -905,22 +1187,27 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
             </div>
           )}
 
-        {(solutionPackages.length > 0 || solutionAssemblies.length > 0) && (
+        {(solutionPackages.length > 0 ||
+          solutionAssemblies.length > 0 ||
+          identities.length > 0) && (
           <>
             <PluginComponentTabs
               activeTab={activeTab}
               packageCount={visiblePackages.length}
               assemblyCount={visibleAssemblies.length}
+              identityCount={visibleIdentities.length}
               filter={nameFilter}
               onActiveTabChange={setActiveTab}
               onFilterChange={setNameFilter}
             />
 
-            {visiblePackages.length === 0 && visibleAssemblies.length === 0 ? (
+            {visiblePackages.length === 0 &&
+            visibleAssemblies.length === 0 &&
+            visibleIdentities.length === 0 ? (
               <div className={styles.emptyState}>
                 <Info24Regular />
                 <Text className={styles.muted}>
-                  No plug-in packages or assemblies match &quot;{nameFilter}
+                  No plug-in packages, assemblies or managed identities match &quot;{nameFilter}
                   &quot;.
                 </Text>
               </div>
@@ -939,6 +1226,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                     onHoverInspect={setHoveredInspectId}
                     onInspect={inspectPackage}
                     onExport={exportPackage}
+                    onManageIdentity={manageePackageIdentity}
+                    onViewDetails={(packageRecord) => {
+                      setDetailsError(null);
+                      setDetailsComponent(toPackageDetails(packageRecord));
+                    }}
                     onSort={sortPackagesBy}
                   />
                 )}
@@ -956,7 +1248,33 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                     onHoverInspect={setHoveredInspectId}
                     onInspect={inspectAssembly}
                     onExport={exportAssembly}
+                    onManageIdentity={manageAssemblyIdentity}
+                    onViewDetails={(assemblyRecord) => {
+                      setDetailsError(null);
+                      setDetailsComponent(toAssemblyDetails(assemblyRecord));
+                    }}
                     onSort={sortAssembliesBy}
+                  />
+                )}
+
+                {activeTab === "identities" && (
+                  <ManagedIdentityTable
+                    identities={pagedIdentities}
+                    tenantId={tenantId}
+                    usageCounts={identityUsageCounts}
+                    isBusy={isSavingIdentity}
+                    sortKey={identitySortKey}
+                    sortDescending={identitySortDescending}
+                    onEdit={(identity) => {
+                      setEditedIdentity(identity);
+                      setIdentitySaveError(null);
+                      setIsEditorOpen(true);
+                    }}
+                    onViewDetails={(identity) => {
+                      setDetailsError(null);
+                      setDetailsIdentity(identity);
+                    }}
+                    onSort={sortIdentitiesBy}
                   />
                 )}
 
@@ -993,132 +1311,6 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
         )}
         {isExportingPackageId && (
           <Spinner label="Downloading plugin package for export..." />
-        )}
-
-        {inspectedPackageName && inspection && (
-          <div className={styles.inspectionSummary}>
-            <Text weight="semibold">{inspectedPackageName}</Text>
-            {inspection.signatureStatus === "unsigned" ? (
-              <Text>
-                {inspectedComponentType === "assembly"
-                  ? "This assembly is not signed."
-                  : "This package does not contain a NuGet `.signature.p7s` entry."}
-              </Text>
-            ) : (
-              <>
-                <div className={styles.inspectionGrid}>
-                  <Text className={styles.inspectionLabel}>Signature</Text>
-                  <Badge appearance="filled" color="success">
-                    {getSignedLabel(
-                      inspectedComponentType,
-                      inspection.certificate.isSelfSigned,
-                    )}
-                  </Badge>
-                  <Text className={styles.inspectionLabel}>Signer</Text>
-                  <Text
-                    className={styles.inspectionValue}
-                    title={inspection.certificate.subjectDistinguishedName}
-                  >
-                    {getCertificateIdentity(
-                      inspection.certificate.subjectDistinguishedName,
-                    )}
-                  </Text>
-                  {inspectedComponentId && inspectedComponentId !== "local" && (
-                    <>
-                      <Text className={styles.inspectionLabel}>
-                        Managed identity
-                      </Text>
-                      {inspectedManagedIdentity ? (
-                        <Text
-                          className={styles.inspectionValue}
-                          title={inspectedManagedIdentity.name}
-                        >
-                          {inspectedManagedIdentity.name}
-                        </Text>
-                      ) : (
-                        <Text className={styles.muted}>
-                          {inspectedHasManagedIdentity
-                            ? "The related managed identity record could not be read."
-                            : `No managed identity is associated with this ${inspectedComponentType}.`}
-                        </Text>
-                      )}
-                    </>
-                  )}
-                </div>
-                {inspectedManagedIdentity && (
-                  <Button
-                    icon={<PersonKey24Regular />}
-                    onClick={() => setIsManagedIdentityDetailsOpen(true)}
-                  >
-                    View managed identity details
-                  </Button>
-                )}
-                <Button
-                  icon={<Certificate24Regular />}
-                  onClick={() => setIsCertificateDetailsOpen(true)}
-                >
-                  View certificate details
-                </Button>
-                {missingIdentitySettings && (
-                  <MessageBar intent="warning">
-                    <MessageBarBody>
-                      {missingIdentitySettingLabels} {missingIdentitySettingLabels.includes(" and ") ? "are" : "is"} required to generate a managed identity subject identifier.
-                      <Button
-                        appearance="transparent"
-                        icon={<Settings24Regular />}
-                        onClick={() => setIsSettingsOpen(true)}
-                      >
-                        Open managed identity settings
-                      </Button>
-                    </MessageBarBody>
-                  </MessageBar>
-                )}
-                {identityResult && (
-                  <div className={styles.identifierGrid}>
-                    <Text className={styles.inspectionLabel}>Issuer</Text>
-                    <Text
-                      className={styles.identifierValue}
-                      title={`${cloudConfigurations[cloud].issuerUrl}/${tenantId.trim()}/v2.0`}
-                    >
-                      {cloudConfigurations[cloud].issuerUrl}/{tenantId.trim()}
-                      /v2.0
-                    </Text>
-                    <Button
-                      appearance="subtle"
-                      icon={<Copy24Regular />}
-                      aria-label="Copy issuer"
-                      onClick={() =>
-                        copyIdentifier(
-                          "Issuer",
-                          `${cloudConfigurations[cloud].issuerUrl}/${tenantId.trim()}/v2.0`,
-                        )
-                      }
-                    />
-                    <Text className={styles.inspectionLabel}>
-                      Subject identifier
-                    </Text>
-                    <Text
-                      className={styles.identifierValue}
-                      title={identityResult.subjectIdentifier}
-                    >
-                      {identityResult.subjectIdentifier}
-                    </Text>
-                    <Button
-                      appearance="subtle"
-                      icon={<Copy24Regular />}
-                      aria-label="Copy subject identifier"
-                      onClick={() =>
-                        copyIdentifier(
-                          "Subject identifier",
-                          identityResult.subjectIdentifier,
-                        )
-                      }
-                    />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
         )}
       </div>
       {isSolutionPickerOpen && (
@@ -1203,18 +1395,118 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
           </section>
         </div>
       )}
+      {detailsComponent && (
+        <PluginComponentDetailsPopup
+          component={detailsComponent}
+          inspection={
+            inspectedComponentId === (detailsComponent.id ?? "local") ? inspection : null
+          }
+          isInspecting={isInspectingPackageId === (detailsComponent.id ?? "local")}
+          identityResult={
+            inspectedComponentId === (detailsComponent.id ?? "local") ? identityResult : null
+          }
+          issuer={`${cloudConfigurations[cloud].issuerUrl}/${tenantId.trim()}/v2.0`}
+          missingIdentitySettingLabels={
+            missingIdentitySettings ? missingIdentitySettingLabels : ""
+          }
+          environmentId={environmentId}
+          copyError={detailsError}
+          onInspect={
+            detailsComponent.entityLogicalName === "pluginpackage"
+              ? () => {
+                  const packageRecord = packages.find(
+                    (candidate) => candidate.id === detailsComponent.id,
+                  );
+
+                  if (packageRecord) {
+                    void inspectPackage(packageRecord);
+                  }
+                }
+              : detailsComponent.entityLogicalName === "pluginassembly"
+                ? () => {
+                    const assemblyRecord = assemblies.find(
+                      (candidate) => candidate.id === detailsComponent.id,
+                    );
+
+                    if (assemblyRecord) {
+                      void inspectAssembly(assemblyRecord);
+                    }
+                  }
+                : null
+          }
+          onCopy={copyFromDetails}
+          onViewCertificate={() => setIsCertificateDetailsOpen(true)}
+          onViewManagedIdentity={() => {
+            setDetailsError(null);
+            setDetailsIdentity(detailsComponent.managedIdentity);
+          }}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onClose={() => {
+            setDetailsComponent(null);
+            setDetailsError(null);
+          }}
+        />
+      )}
       {isCertificateDetailsOpen && inspection?.signatureStatus === "signed" && (
         <CertificateDetailsPopup
           certificate={inspection.certificate}
           onClose={() => setIsCertificateDetailsOpen(false)}
         />
       )}
-      {isManagedIdentityDetailsOpen && inspectedManagedIdentity && (
+      {detailsIdentity && (
         <ManagedIdentityDetailsPopup
-          managedIdentity={inspectedManagedIdentity}
+          managedIdentity={detailsIdentity}
+          associatedPackages={packages.filter(
+            (packageRecord) => packageRecord.managedIdentityId === detailsIdentity.id,
+          )}
+          associatedAssemblies={assemblies.filter(
+            (assemblyRecord) => assemblyRecord.managedIdentityId === detailsIdentity.id,
+          )}
           tenantId={tenantId}
-          onCopy={copyIdentifier}
-          onClose={() => setIsManagedIdentityDetailsOpen(false)}
+          environmentId={environmentId}
+          copyError={detailsError}
+          onCopy={copyFromDetails}
+          onClose={() => {
+            setDetailsIdentity(null);
+            setDetailsError(null);
+          }}
+        />
+      )}
+      {associationTarget && (
+        <ManagedIdentityPickerDialog
+          identities={identities}
+          componentName={associationTarget.name}
+          componentType={associationTarget.componentType}
+          componentIsCustomizable={associationTarget.isCustomizable}
+          currentManagedIdentityId={associationTarget.managedIdentityId}
+          tenantId={tenantId}
+          isSaving={isSavingIdentity}
+          saveError={associationError}
+          onApply={applyAssociation}
+          onCreateNew={() => {
+            setEditedIdentity(null);
+            setIdentitySaveError(null);
+            setIsEditorOpen(true);
+          }}
+          onClose={() => {
+            setAssociationTarget(null);
+            setAssociationError(null);
+          }}
+        />
+      )}      {isEditorOpen && (
+        <ManagedIdentityEditorDialog
+          managedIdentity={editedIdentity ?? undefined}
+          defaultTenantId={tenantId}
+          environmentId={environmentId}
+          isSaving={isSavingIdentity}
+          saveError={identitySaveError}
+          onCreate={createIdentity}
+          onUpdate={updateIdentity}
+          onClose={() => {
+            setIsEditorOpen(false);
+            setEditedIdentity(null);
+            setIdentitySaveError(null);
+          }}
         />
       )}
     </Card>

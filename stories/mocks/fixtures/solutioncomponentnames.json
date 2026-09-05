@@ -1,0 +1,17 @@
+{
+  "@odata.context": "https://betim-mvp-alm01.crm4.dynamics.com/api/data/v9.2/$metadata#solutioncomponentdefinitions(name,primaryentityname)",
+  "value": [
+    {
+      "name": "ManagedIdentity",
+      "primaryentityname": "managedidentity"
+    },
+    {
+      "name": "PluginAssembly",
+      "primaryentityname": "pluginassembly"
+    },
+    {
+      "name": "PluginPackage",
+      "primaryentityname": "pluginpackage"
+    }
+  ]
+}

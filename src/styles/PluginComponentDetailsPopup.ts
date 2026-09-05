@@ -16,7 +16,7 @@
 
 import { makeStyles, tokens } from "@fluentui/react-components";
 
-const useManagedIdentityDetailsStyles = makeStyles({
+const useStyles = makeStyles({
   overlay: {
     position: "fixed",
     inset: 0,
@@ -28,12 +28,13 @@ const useManagedIdentityDetailsStyles = makeStyles({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   popup: {
-    width: "min(640px, 100%)",
+    width: "min(760px, 100%)",
     maxHeight: "85vh",
     display: "flex",
     flexDirection: "column",
     backgroundColor: tokens.colorNeutralBackground1,
     border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusMedium,
     boxShadow: tokens.shadow64,
   },
   header: {
@@ -54,54 +55,51 @@ const useManagedIdentityDetailsStyles = makeStyles({
   },
   fields: {
     display: "grid",
-    gridTemplateColumns: "minmax(140px, 0.4fr) minmax(0, 1fr) 40px",
+    gridTemplateColumns: "minmax(140px, 0.35fr) minmax(0, 1fr)",
     alignItems: "center",
-    rowGap: tokens.spacingVerticalS,
+    rowGap: tokens.spacingVerticalXS,
     columnGap: tokens.spacingHorizontalM,
   },
   label: {
-    color: tokens.colorNeutralForeground2,
+    color: tokens.colorNeutralForeground3,
     fontWeight: tokens.fontWeightSemibold,
   },
-  control: {
-    width: "100%",
-    minWidth: 0,
-  },
-  monospaceInput: {
-    fontFamily: tokens.fontFamilyMonospace,
-  },
-  actionCell: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    minWidth: "40px",
+  value: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   tabs: {
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
     paddingTop: tokens.spacingVerticalS,
   },
-  associatedList: {
-    maxHeight: "220px",
-    overflowY: "auto",
+  inspection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalS,
   },
-  versionColumn: {
-    width: "120px",
-    minWidth: "120px",
+  actions: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: tokens.spacingHorizontalS,
   },
-  typeColumn: {
-    width: "70px",
-    minWidth: "70px",
-    textAlign: "center",
+  identifierGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(120px, 0.28fr) minmax(0, 1fr) auto",
+    alignItems: "center",
+    rowGap: tokens.spacingVerticalXS,
+    columnGap: tokens.spacingHorizontalS,
   },
-  ellipsis: {
-    display: "block",
+  identifierValue: {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+    fontFamily: tokens.fontFamilyMonospace,
+    fontSize: tokens.fontSizeBase200,
   },
   muted: {
     color: tokens.colorNeutralForeground3,
   },
 });
 
-export default useManagedIdentityDetailsStyles;
+export default useStyles;

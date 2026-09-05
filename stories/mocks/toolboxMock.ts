@@ -69,6 +69,10 @@ export function createToolboxAPIMock(
     await navigator.clipboard?.writeText(text).catch(() => undefined);
   });
   api.utils.showNotification.resolves();
+  // Storybook has no external browser, so record the URL instead of navigating away.
+  api.utils.openInConnectionBrowser.callsFake(async (url) => {
+    console.log(`openInConnectionBrowser: ${url}`);
+  });
 
   api.fileSystem.selectPath.callsFake(async (selectionOptions) => {
     if (selectionOptions?.type !== 'file') {

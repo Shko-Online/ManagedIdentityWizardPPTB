@@ -17,12 +17,13 @@
 import { Button, Input } from "@fluentui/react-components";
 import useStyles from "../styles/PluginComponentTabs";
 
-export type PluginComponentTab = "packages" | "assemblies";
+export type PluginComponentTab = "packages" | "assemblies" | "identities";
 
 type PluginComponentTabsProps = {
   activeTab: PluginComponentTab;
   packageCount: number;
   assemblyCount: number;
+  identityCount: number;
   filter: string;
   onActiveTabChange: (tab: PluginComponentTab) => void;
   onFilterChange: (filter: string) => void;
@@ -32,6 +33,7 @@ export const PluginComponentTabs: React.FC<PluginComponentTabsProps> = ({
   activeTab,
   packageCount,
   assemblyCount,
+  identityCount,
   filter,
   onActiveTabChange,
   onFilterChange,
@@ -58,6 +60,15 @@ export const PluginComponentTabs: React.FC<PluginComponentTabsProps> = ({
           onClick={() => onActiveTabChange("assemblies")}
         >
           Plugin assemblies ({assemblyCount})
+        </Button>
+        <Button
+          appearance="subtle"
+          className={activeTab === "identities" ? styles.activeTab : undefined}
+          role="tab"
+          aria-selected={activeTab === "identities"}
+          onClick={() => onActiveTabChange("identities")}
+        >
+          Managed identities ({identityCount})
         </Button>
       </div>
       <Input

@@ -16,7 +16,7 @@
 
 import { makeStyles, tokens } from "@fluentui/react-components";
 
-const useManagedIdentityDetailsStyles = makeStyles({
+const useStyles = makeStyles({
   overlay: {
     position: "fixed",
     inset: 0,
@@ -24,16 +24,17 @@ const useManagedIdentityDetailsStyles = makeStyles({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: tokens.spacingVerticalL,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    padding: tokens.spacingHorizontalL,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
   },
   popup: {
     width: "min(640px, 100%)",
-    maxHeight: "85vh",
+    maxHeight: "min(760px, 90vh)",
     display: "flex",
     flexDirection: "column",
     backgroundColor: tokens.colorNeutralBackground1,
     border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusMedium,
     boxShadow: tokens.shadow64,
   },
   header: {
@@ -54,7 +55,7 @@ const useManagedIdentityDetailsStyles = makeStyles({
   },
   fields: {
     display: "grid",
-    gridTemplateColumns: "minmax(140px, 0.4fr) minmax(0, 1fr) 40px",
+    gridTemplateColumns: "minmax(150px, 0.4fr) minmax(0, 1fr)",
     alignItems: "center",
     rowGap: tokens.spacingVerticalS,
     columnGap: tokens.spacingHorizontalM,
@@ -70,38 +71,14 @@ const useManagedIdentityDetailsStyles = makeStyles({
   monospaceInput: {
     fontFamily: tokens.fontFamilyMonospace,
   },
-  actionCell: {
+  footer: {
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
-    minWidth: "40px",
-  },
-  tabs: {
+    gap: tokens.spacingHorizontalS,
+    padding: tokens.spacingVerticalM,
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
-    paddingTop: tokens.spacingVerticalS,
-  },
-  associatedList: {
-    maxHeight: "220px",
-    overflowY: "auto",
-  },
-  versionColumn: {
-    width: "120px",
-    minWidth: "120px",
-  },
-  typeColumn: {
-    width: "70px",
-    minWidth: "70px",
-    textAlign: "center",
-  },
-  ellipsis: {
-    display: "block",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  muted: {
-    color: tokens.colorNeutralForeground3,
   },
 });
 
-export default useManagedIdentityDetailsStyles;
+export default useStyles;

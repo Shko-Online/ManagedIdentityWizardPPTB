@@ -69,44 +69,48 @@ function App() {
     }, [toolboxAPI]);
 
     return (
-        <FluentProvider theme={theme === 'dark' ? webDarkTheme : webLightTheme} className={styles.root}>
-            <div className={styles.header}>
-                <div className={styles.headerTitle}>
-                    <div className={styles.titleGroup}>
-                        <img
-                            className={styles.headerIcon}
-                            src="/ManagedIdentity.svg"
-                            alt=""
+        // Layout stays off FluentProvider: it copies its className onto portal mount nodes,
+        // which would paint the app shell background over popups.
+        <FluentProvider theme={theme === 'dark' ? webDarkTheme : webLightTheme}>
+            <div className={styles.root}>
+                <div className={styles.header}>
+                    <div className={styles.headerTitle}>
+                        <div className={styles.titleGroup}>
+                            <img
+                                className={styles.headerIcon}
+                                src="/ManagedIdentity.svg"
+                                alt=""
+                            />
+                            <Title3 className={styles.title}>{'Managed\u00a0Identity\u00a0Wizard'}</Title3>
+                        </div>
+                        <EllipsisText
+                            className={styles.subtitle}
+                            value="Inspect Dataverse plug-in packages and prepare managed identity credentials."
                         />
-                        <Title3 className={styles.title}>{'Managed\u00a0Identity\u00a0Wizard'}</Title3>
                     </div>
-                    <EllipsisText
-                        className={styles.subtitle}
-                        value="Inspect Dataverse plug-in packages and prepare managed identity credentials."
-                    />
                 </div>
+
+                <div className={styles.content}>
+                    <div className={styles.topRowContainer}>
+                        <div className={styles.connectionStatus}>
+                            <ConnectionStatus />
+                        </div>
+
+                        <div className={styles.shkoOnlineAd}>
+                            <ShkoOnlineAd />
+                        </div>
+                    </div>
+
+                    <div>
+                        <PluginPackageInspector />
+                    </div>
+
+                    <div>
+                        <EventLog />
+                    </div>
+                </div>
+                <div className={styles.menuRoot} ref={setMenuRoot} />
             </div>
-
-            <div className={styles.content}>
-              <div className={styles.topRowContainer}>
-                    <div className={styles.connectionStatus}>
-                        <ConnectionStatus />
-                    </div>
-
-                    <div className={styles.shkoOnlineAd}>
-                        <ShkoOnlineAd />
-                    </div>
-                </div>
-
-                <div>
-                    <PluginPackageInspector  />
-                </div>
-
-                <div>
-                    <EventLog />
-                </div>
-            </div>
-            <div className={styles.menuRoot} ref={setMenuRoot} />
         </FluentProvider>
     );
 }

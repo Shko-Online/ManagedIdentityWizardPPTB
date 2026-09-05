@@ -89,6 +89,8 @@ type Story = StoryObj<typeof meta>;
 
 const connected = { connection: storybookConnection };
 
+const NEW_IDENTITY_NAME = 'Contoso.Plugins Identity';
+
 /** Stable starting point for the README visual-regression runner. */
 export const Documentation: Story = {
   parameters: connected,
@@ -193,3 +195,119 @@ export const UnsignedPackage: Story = {
     ).toBeInTheDocument();
   },
 };
+
+export const ManagedIdentityList: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(await canvas.findByRole('tab', { name: /^Managed identities/ }));
+
+    await expect(await canvas.findByRole('table', { name: 'Managed identities' })).toBeInTheDocument();
+    await expect(await canvas.findAllByRole('button', { name: /^Edit / })).not.toHaveLength(0);
+  },
+};
+
+export const CreatedManagedIdentity: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(await canvas.findByRole('button', { name: 'New managed identity' }));
+
+    const dialog = within(await canvas.findByRole('dialog', { name: 'New managed identity' }));
+    await userEvent.click(await dialog.findByRole('textbox', { name: 'Name' }));
+    await userEvent.paste(NEW_IDENTITY_NAME);
+    await userEvent.click(await dialog.findByRole('textbox', { name: 'Application ID' }));
+    await userEvent.paste('11112222333344445555666677778888');
+    await userEvent.click(await dialog.findByRole('button', { name: 'Create managed identity' }));
+
+    await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(await canvas.findByRole('tab', { name: /^Managed identities/ }));
+    await userEvent.click(await canvas.findByRole('textbox', { name: 'Filter component names' }));
+    await userEvent.paste(NEW_IDENTITY_NAME);
+    await expect(await canvas.findByText(NEW_IDENTITY_NAME)).toBeInTheDocument();
+  },
+};
+
+export const AssociatedComponentTabs: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(await canvas.findByRole('tab', { name: /^Managed identities/ }));
+    await userEvent.click(await canvas.findByRole('textbox', { name: 'Filter component names' }));
+    await userEvent.paste('ShkoOnline');
+    await userEvent.click((await canvas.findAllByRole('button', { name: / details$/ }))[0]);
+
+    const dialog = within(await canvas.findByRole('dialog', { name: 'Managed identity details' }));
+    await userEvent.click(await dialog.findByRole('tab', { name: 'Plugin packages (2)' }));
+
+    const list = within(await dialog.findByRole('table', { name: 'Associated plugin packages' }));
+    await expect(await list.findByText(SIGNED_PACKAGE_NAME)).toBeInTheDocument();
+  },
+};
+
+export const LockedManagedIdentity: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(await canvas.findByRole('tab', { name: /^Managed identities/ }));
+    await userEvent.click((await canvas.findAllByRole('button', { name: /^Edit / }))[0]);
+
+    const dialog = within(await canvas.findByRole('dialog', { name: 'Edit managed identity' }));
+    await expect(
+      await dialog.findByText(
+        'This managed identity does not allow customizations, so it cannot be edited here.',
+      ),
+    ).toBeInTheDocument();
+    await expect(await dialog.findByRole('textbox', { name: 'Name' })).toHaveAttribute('readonly');
+    await expect(await dialog.findByRole('button', { name: 'Save changes' })).toBeDisabled();
+  },
+};
+
+export const PluginPackageSolutionLayers: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(
+      await canvas.findByRole('button', { name: `View ${UNSIGNED_PACKAGE_NAME} details` }),
+    );
+
+    const dialog = within(await canvas.findByRole('dialog', { name: 'Plugin package details' }));
+    await userEvent.click(await dialog.findByRole('tab', { name: 'Solution layers' }));
+
+    const layers = within(await dialog.findByRole('table', { name: 'Solution layers' }));
+    await expect(await layers.findByText('Active')).toBeInTheDocument();
+    await expect(await layers.findByText('Shko Online')).toBeInTheDocument();
+  },
+};
+
+export const AssociatedManagedIdentity: Story = {
+  parameters: connected,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Refresh packages' }));
+    await userEvent.click(
+      await canvas.findByRole('button', {
+        name: `Manage the managed identity of ${UNSIGNED_PACKAGE_NAME}`,
+      }),
+    );
+
+    const dialog = within(
+      await canvas.findByRole('dialog', {
+        name: `Managed identity for ${UNSIGNED_PACKAGE_NAME}`,
+      }),
+    );
+    await userEvent.click(await dialog.findByRole('checkbox', { name: 'Select dataflows' }));
+    await userEvent.click(await dialog.findByRole('button', { name: 'Associate dataflows' }));
+
+    await waitFor(() => expect(canvas.queryByRole('dialog')).not.toBeInTheDocument());
+    await expect(
+      await canvas.findByText(`Associated dataflows with ${UNSIGNED_PACKAGE_NAME}.`),
+    ).toBeInTheDocument();
+  },
+};
+

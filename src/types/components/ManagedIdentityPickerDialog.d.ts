@@ -14,22 +14,19 @@
    limitations under the License.
  */
 
-import type {
-  ManagedIdentityRecord,
-  PluginAssemblyRecord,
-  PluginPackageRecord,
-} from "../../services/pluginPackageService";
+import type { ManagedIdentityRecord } from "../../services/pluginPackageService";
 
-export interface ManagedIdentityDetailsPopupProps {
-  managedIdentity: ManagedIdentityRecord;
-  /** Plugin packages currently bound to this identity. */
-  associatedPackages: PluginPackageRecord[];
-  /** Plugin assemblies currently bound to this identity. */
-  associatedAssemblies: PluginAssemblyRecord[];
+export interface ManagedIdentityPickerDialogProps {
+  identities: ManagedIdentityRecord[];
+  componentName: string;
+  componentType: "assembly" | "package";
+  componentIsCustomizable: boolean;
+  currentManagedIdentityId: string | null;
   tenantId: string;
-  environmentId: string;
-  /** Failure from the last copy attempt, shown inside the popup. */
-  copyError: string | null;
-  onCopy: (label: string, value: string) => void;
+  isSaving: boolean;
+  /** Failure from the last association change, shown inside the dialog. */
+  saveError: string | null;
+  onApply: (managedIdentityId: string | null) => void;
+  onCreateNew: () => void;
   onClose: () => void;
 }

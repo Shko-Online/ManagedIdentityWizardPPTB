@@ -3,6 +3,8 @@ import {
   ArrowSortUp24Regular,
   CheckmarkCircle24Regular,
   DocumentSearch24Regular,
+  Info24Regular,
+  PersonKey24Regular,
   Save24Regular,
 } from "@fluentui/react-icons";
 import {
@@ -30,6 +32,7 @@ type AssemblySortKey =
   | "createdOn"
   | "modifiedOn"
   | "isManaged"
+  | "isCustomizable"
   | "managedIdentity";
 
 type PluginAssemblyTableProps = {
@@ -44,6 +47,8 @@ type PluginAssemblyTableProps = {
   onHoverInspect: (id: string | null) => void;
   onInspect: (assemblyRecord: PluginAssemblyRecord) => void;
   onExport: (assemblyRecord: PluginAssemblyRecord) => void;
+  onManageIdentity: (assemblyRecord: PluginAssemblyRecord) => void;
+  onViewDetails: (assemblyRecord: PluginAssemblyRecord) => void;
   onSort: (sortKey: AssemblySortKey) => void;
 };
 
@@ -59,6 +64,8 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
   onHoverInspect,
   onInspect,
   onExport,
+  onManageIdentity,
+  onViewDetails,
   onSort,
 }) => {
   const styles = useStyles();
@@ -88,6 +95,7 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
             <TableHeaderCell className={styles.assemblyNameColumn}>{sortableHeader("Name", "name")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyVersionColumn}>{sortableHeader("Version", "version")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyManagedColumn}>{sortableHeader("Type", "isManaged")}</TableHeaderCell>
+            <TableHeaderCell className={styles.customizableColumn}>{sortableHeader("Customizable", "isCustomizable")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyCreatedColumn}>{sortableHeader("Created", "createdOn")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyModifiedColumn}>{sortableHeader("Modified", "modifiedOn")}</TableHeaderCell>
             <TableHeaderCell className={styles.assemblyIdentityColumn}>{sortableHeader("Managed identity", "managedIdentity")}</TableHeaderCell>
@@ -101,6 +109,9 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
               <TableCell className={styles.assemblyVersionColumn}><EllipsisText className={styles.ellipsis} value={assemblyRecord.version || "-"} /></TableCell>
               <TableCell className={styles.assemblyManagedColumn}>
                 <Badge appearance="tint" color={assemblyRecord.isManaged ? "brand" : "informative"} title={assemblyRecord.isManaged ? "Managed" : "Unmanaged"}>{assemblyRecord.isManaged ? "M" : "U"}</Badge>
+              </TableCell>
+              <TableCell className={styles.customizableColumn}>
+                <Badge appearance="tint" color={assemblyRecord.isCustomizable ? "success" : "danger"} title={assemblyRecord.isCustomizable ? "Customizations are allowed" : "This assembly does not allow customizations"}>{assemblyRecord.isCustomizable ? "Yes" : "No"}</Badge>
               </TableCell>
               <TableCell className={styles.assemblyCreatedColumn} title={formatSolutionDateTime(assemblyRecord.createdOn)}>{formatSolutionDate(assemblyRecord.createdOn)}</TableCell>
               <TableCell className={styles.assemblyModifiedColumn} title={formatSolutionDateTime(assemblyRecord.modifiedOn)}>{formatSolutionDate(assemblyRecord.modifiedOn)}</TableCell>
@@ -119,8 +130,10 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
               </TableCell>
               <TableCell className={styles.assemblyActionColumn}>
                 <div className={styles.actionButtons}>
+                  <Button appearance="subtle" icon={<Info24Regular />} aria-label={`View ${assemblyRecord.name} details`} title={`View ${assemblyRecord.name} details`} onClick={() => onViewDetails(assemblyRecord)} />
                   <Button appearance="subtle" icon={inspectedComponentId === assemblyRecord.id && hasInspection && hoveredInspectId !== assemblyRecord.id ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} /> : <DocumentSearch24Regular />} aria-label={inspectedComponentId === assemblyRecord.id && hasInspection ? `Inspect ${assemblyRecord.name} again` : `Inspect ${assemblyRecord.name}`} title={inspectedComponentId === assemblyRecord.id && hasInspection ? "Inspect again" : `Inspect ${assemblyRecord.name}`} onMouseEnter={() => onHoverInspect(assemblyRecord.id)} onMouseLeave={() => onHoverInspect(null)} onClick={() => onInspect(assemblyRecord)} disabled={isInspecting || isExporting} />
                   <Button appearance="subtle" icon={<Save24Regular />} aria-label={`Export ${assemblyRecord.name}`} title={`Export ${assemblyRecord.name}`} onClick={() => onExport(assemblyRecord)} disabled={isInspecting || isExporting} />
+                  <Button appearance="subtle" icon={<PersonKey24Regular />} aria-label={`Manage the managed identity of ${assemblyRecord.name}`} title={`Manage the managed identity of ${assemblyRecord.name}`} onClick={() => onManageIdentity(assemblyRecord)} disabled={isInspecting || isExporting} />
                 </div>
               </TableCell>
             </TableRow>

@@ -15,6 +15,7 @@
  */
 
 import {
+  Badge,
   Button,
   Dropdown,
   Input,
@@ -22,10 +23,18 @@ import {
   MessageBar,
   MessageBarBody,
   Option,
+  Tab,
+  TabList,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
   Text,
 } from "@fluentui/react-components";
 import { Copy24Regular, Dismiss24Regular } from "@fluentui/react-icons";
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   credentialSourceOptions,
   getCredentialSourceLabel,
@@ -38,6 +47,8 @@ import {
   subjectScopeOptions,
 } from "../services/pluginPackageInspector";
 import type { ManagedIdentityDetailsPopupProps } from "../types/components/ManagedIdentityDetailsPopup";
+import EllipsisText from "./EllipsisText";
+import { SolutionLayers } from "./SolutionLayers";
 import useManagedIdentityDetailsStyles from "../styles/ManagedIdentityDetailsPopup";
 
 type ChoiceField = {
@@ -48,13 +59,20 @@ type ChoiceField = {
   options: Array<{ value: number; label: string }>;
 };
 
+type DetailsTab = "layers" | "assemblies" | "packages";
+
 export function ManagedIdentityDetailsPopup({
   managedIdentity,
+  associatedPackages,
+  associatedAssemblies,
   tenantId,
+  environmentId,
+  copyError,
   onCopy,
   onClose,
 }: ManagedIdentityDetailsPopupProps) {
   const styles = useManagedIdentityDetailsStyles();
+  const [activeTab, setActiveTab] = useState<DetailsTab>("layers");
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -101,6 +119,8 @@ export function ManagedIdentityDetailsPopup({
       options: managedIdentityStateOptions,
     },
   ];
+  const associatedComponents =
+    activeTab === "assemblies" ? associatedAssemblies : associatedPackages;
 
   return (
     <div className={styles.overlay} role="presentation" onMouseDown={onClose}>
@@ -116,6 +136,11 @@ export function ManagedIdentityDetailsPopup({
           <Button appearance="subtle" icon={<Dismiss24Regular />} aria-label="Close managed identity details" onClick={onClose} />
         </div>
         <div className={styles.body}>
+          {copyError && (
+            <MessageBar intent="error">
+              <MessageBarBody>{copyError}</MessageBarBody>
+            </MessageBar>
+          )}
           {hasTenantMismatch(managedIdentity, tenantId) && (
             <MessageBar intent="warning">
               <MessageBarBody>
@@ -187,6 +212,59 @@ export function ManagedIdentityDetailsPopup({
             />
             <span className={styles.actionCell} />
           </div>
+          <TabList
+            className={styles.tabs}
+            selectedValue={activeTab}
+            onTabSelect={(_event, data) => setActiveTab(data.value as DetailsTab)}
+          >
+            <Tab value="layers">Solution layers</Tab>
+            <Tab value="assemblies">Plugin assemblies ({associatedAssemblies.length})</Tab>
+            <Tab value="packages">Plugin packages ({associatedPackages.length})</Tab>
+          </TabList>
+          {activeTab === "layers" && (
+            <SolutionLayers
+              entityLogicalName="managedidentity"
+              componentId={managedIdentity.id}
+              isManaged={managedIdentity.isManaged}
+              isCustomizable={managedIdentity.isCustomizable}
+              componentLabel="managed identity"
+              environmentId={environmentId}
+            />
+          )}
+          {activeTab !== "layers" && (
+            <div className={styles.associatedList}>
+              {associatedComponents.length === 0 ? (
+                <Text className={styles.muted}>
+                  No plugin {activeTab === "assemblies" ? "assemblies are" : "packages are"} associated with this managed identity.
+                </Text>
+              ) : (
+                <Table size="extra-small" aria-label={activeTab === "assemblies" ? "Associated plugin assemblies" : "Associated plugin packages"}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHeaderCell>Name</TableHeaderCell>
+                      <TableHeaderCell className={styles.versionColumn}>Version</TableHeaderCell>
+                      <TableHeaderCell className={styles.typeColumn}>Type</TableHeaderCell>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {associatedComponents.map((component) => (
+                      <TableRow key={component.id}>
+                        <TableCell>
+                          <EllipsisText className={styles.ellipsis} value={component.name} />
+                        </TableCell>
+                        <TableCell className={styles.versionColumn}>{component.version || "-"}</TableCell>
+                        <TableCell className={styles.typeColumn}>
+                          <Badge appearance="tint" color={component.isManaged ? "brand" : "informative"} title={component.isManaged ? "Managed" : "Unmanaged"}>
+                            {component.isManaged ? "M" : "U"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          )}
         </div>
       </section>
     </div>

@@ -14,7 +14,7 @@ import {
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent, within } from 'storybook/test';
-import { PluginComponentTabs } from '../src/components/PluginComponentTabs';
+import { type PluginComponentTab, PluginComponentTabs } from '../src/components/PluginComponentTabs';
 import { PluginPackageInspector } from '../src/components/PluginPackageInspector';
 import { SolutionPickerDialog } from '../src/components/SolutionPickerDialog';
 import type { SolutionRecord } from '../src/services/pluginPackageService';
@@ -107,7 +107,7 @@ type Story = StoryObj<typeof meta>;
 
 export const ComponentBrowser: Story = {
   render: function ComponentBrowserStory() {
-    const [activeTab, setActiveTab] = useState<'packages' | 'assemblies'>('packages');
+    const [activeTab, setActiveTab] = useState<PluginComponentTab>('packages');
     const [filter, setFilter] = useState('');
 
     return (
@@ -115,6 +115,7 @@ export const ComponentBrowser: Story = {
         activeTab={activeTab}
         packageCount={12}
         assemblyCount={8}
+        identityCount={4}
         filter={filter}
         onActiveTabChange={setActiveTab}
         onFilterChange={setFilter}

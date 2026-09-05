@@ -24,6 +24,7 @@ export interface ManagedIdentityRecord {
   version: number | null;
   stateCode: number | null;
   isManaged: boolean;
+  isCustomizable: boolean;
 }
 
 export interface PluginPackageRecord {
@@ -36,6 +37,7 @@ export interface PluginPackageRecord {
   managedIdentityId: string | null;
   managedIdentity: ManagedIdentityRecord | null;
   isManaged: boolean;
+  isCustomizable: boolean;
   stateCode: number | null;
   statusCode: number | null;
   createdOn: string;
@@ -61,6 +63,7 @@ export interface PluginAssemblyRecord {
   managedIdentityId: string | null;
   managedIdentity: ManagedIdentityRecord | null;
   isManaged: boolean;
+  isCustomizable: boolean;
   createdOn: string;
   modifiedOn: string;
 }
@@ -70,17 +73,62 @@ export interface PluginComponentTypes {
   pluginpackage: number;
 }
 
+export interface ManagedIdentityInput {
+  name: string;
+  applicationId: string;
+  tenantId: string;
+  credentialSource: number;
+  subjectScope: number;
+  version: number;
+}
+
+export type PluginComponentEntity = "pluginassembly" | "pluginpackage";
+
+/** Entities whose solution layers this tool can show. */
+export type LayeredComponentEntity = PluginComponentEntity | "managedidentity";
+
+export interface ComponentLayerRecord {
+  id: string;
+  name: string;
+  solutionName: string;
+  publisherName: string;
+  order: number | null;
+  overwriteTime: string;
+}
+
+/** Display fallback for managed identities Dataverse returns without a name. */
+export const UNNAMED_MANAGED_IDENTITY = "(unnamed managed identity)";
+
+const LAYERED_COMPONENT_ENTITIES: LayeredComponentEntity[] = [
+  "managedidentity",
+  "pluginassembly",
+  "pluginpackage",
+];
+
+const SOLUTION_COMPONENT_NAMES_QUERY =
+  "solutioncomponentdefinitions?$select=name,primaryentityname&$filter=" +
+  LAYERED_COMPONENT_ENTITIES.map((entity) => `primaryentityname eq '${entity}'`).join(" or ");
+
+function createComponentLayersQuery(solutionComponentName: string, componentId: string): string {
+  return "msdyn_componentlayers?$select=msdyn_componentlayerid,msdyn_name,msdyn_solutionname,msdyn_publishername,msdyn_order,msdyn_overwritetime" +
+    `&$filter=msdyn_componentid eq '${componentId}' and msdyn_solutioncomponentname eq '${solutionComponentName}'` +
+    "&$orderby=msdyn_order desc";
+}
+
 const MANAGED_IDENTITY_EXPAND =
-  "$expand=managedidentityid($select=managedidentityid,name,applicationid,tenantid,credentialsource,subjectscope,version,statecode,ismanaged)";
+  "$expand=managedidentityid($select=managedidentityid,name,applicationid,tenantid,credentialsource,subjectscope,version,statecode,ismanaged,iscustomizable)";
+
+const MANAGED_IDENTITY_QUERY =
+  "managedidentities?$select=managedidentityid,name,applicationid,tenantid,credentialsource,subjectscope,version,statecode,ismanaged,iscustomizable&$orderby=name";
 
 const PLUGIN_PACKAGE_QUERY = [
-  "pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,statecode,statuscode,createdon,modifiedon,_managedidentityid_value",
+  "pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,iscustomizable,statecode,statuscode,createdon,modifiedon,_managedidentityid_value",
   MANAGED_IDENTITY_EXPAND,
   "$orderby=name",
 ].join("&");
 
 const PLUGIN_ASSEMBLY_QUERY = [
-  "pluginassemblies?$select=pluginassemblyid,name,version,ismanaged,createdon,modifiedon,_managedidentityid_value",
+  "pluginassemblies?$select=pluginassemblyid,name,version,ismanaged,iscustomizable,createdon,modifiedon,_managedidentityid_value",
   MANAGED_IDENTITY_EXPAND,
   "$filter=_packageid_value eq null",
   "$orderby=name",
@@ -104,6 +152,15 @@ function asNumber(value: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
+/** ManagedProperty columns come back as `{ Value, CanBeChanged, ... }`; assume customizable when absent. */
+function asManagedProperty(value: unknown): boolean {
+  if (typeof value === "object" && value !== null) {
+    return (value as Record<string, unknown>).Value !== false;
+  }
+
+  return value !== false;
+}
+
 function mapManagedIdentity(value: unknown): ManagedIdentityRecord | null {
   if (typeof value !== "object" || value === null) {
     return null;
@@ -118,7 +175,7 @@ function mapManagedIdentity(value: unknown): ManagedIdentityRecord | null {
 
   return {
     id,
-    name: asString(record.name) ?? "(unnamed managed identity)",
+    name: asString(record.name) ?? UNNAMED_MANAGED_IDENTITY,
     applicationId: asString(record.applicationid),
     tenantId: asString(record.tenantid),
     credentialSource: asNumber(record.credentialsource),
@@ -126,6 +183,7 @@ function mapManagedIdentity(value: unknown): ManagedIdentityRecord | null {
     version: asNumber(record.version),
     stateCode: asNumber(record.statecode),
     isManaged: record.ismanaged === true,
+    isCustomizable: asManagedProperty(record.iscustomizable),
   };
 }
 
@@ -164,6 +222,7 @@ function mapPluginPackage(record: Record<string, unknown>): PluginPackageRecord 
     managedIdentityId: asString(record._managedidentityid_value),
     managedIdentity: mapManagedIdentity(record.managedidentityid),
     isManaged: record.ismanaged === true,
+    isCustomizable: asManagedProperty(record.iscustomizable),
     stateCode: asNumber(record.statecode),
     statusCode: asNumber(record.statuscode),
     createdOn: asString(record.createdon) ?? "",
@@ -197,9 +256,152 @@ export async function listPluginAssemblies(
       managedIdentityId: asString(record._managedidentityid_value),
       managedIdentity: mapManagedIdentity(record.managedidentityid),
       isManaged: record.ismanaged === true,
+      isCustomizable: asManagedProperty(record.iscustomizable),
       createdOn: asString(record.createdon) ?? "",
       modifiedOn: asString(record.modifiedon) ?? "",
     };
+  });
+}
+
+export async function listManagedIdentities(
+  dataverseAPI: DataverseAPI.API,
+): Promise<ManagedIdentityRecord[]> {
+  const result = await dataverseAPI.queryData(MANAGED_IDENTITY_QUERY);
+
+  return result.value.map((record) => {
+    const managedIdentity = mapManagedIdentity(record);
+
+    if (!managedIdentity) {
+      throw new Error("Dataverse returned a managed identity without managedidentityid.");
+    }
+
+    return managedIdentity;
+  });
+}
+
+function toManagedIdentityAttributes(input: Partial<ManagedIdentityInput>): Record<string, unknown> {
+  const attributes: Record<string, unknown> = {};
+
+  if (input.name !== undefined) {
+    attributes.name = input.name.trim() || null;
+  }
+
+  if (input.applicationId !== undefined) {
+    attributes.applicationid = input.applicationId.trim();
+  }
+
+  if (input.tenantId !== undefined) {
+    attributes.tenantid = input.tenantId.trim() || null;
+  }
+
+  if (input.credentialSource !== undefined) {
+    attributes.credentialsource = input.credentialSource;
+  }
+
+  if (input.subjectScope !== undefined) {
+    attributes.subjectscope = input.subjectScope;
+  }
+
+  if (input.version !== undefined) {
+    attributes.version = input.version;
+  }
+
+  return attributes;
+}
+
+export async function createManagedIdentity(
+  dataverseAPI: DataverseAPI.API,
+  input: ManagedIdentityInput,
+): Promise<string> {
+  const result = await dataverseAPI.create("managedidentity", toManagedIdentityAttributes(input));
+  return result.id;
+}
+
+export async function updateManagedIdentity(
+  dataverseAPI: DataverseAPI.API,
+  managedIdentityId: string,
+  changes: Partial<ManagedIdentityInput>,
+): Promise<void> {
+  await dataverseAPI.update("managedidentity", managedIdentityId, {
+    managedidentityid: managedIdentityId,
+    ...toManagedIdentityAttributes(changes),
+  });
+}
+
+const solutionComponentNames = new Map<string, string>();
+
+/** The layer query needs the solution component name, which differs from the entity logical name. */
+async function getSolutionComponentName(
+  dataverseAPI: DataverseAPI.API,
+  entityLogicalName: LayeredComponentEntity,
+): Promise<string> {
+  if (solutionComponentNames.size === 0) {
+    const result = await dataverseAPI.queryData(SOLUTION_COMPONENT_NAMES_QUERY);
+
+    for (const record of result.value) {
+      const primaryEntityName = asString(record.primaryentityname);
+      const name = asString(record.name);
+
+      if (primaryEntityName && name) {
+        solutionComponentNames.set(primaryEntityName, name);
+      }
+    }
+  }
+
+  const solutionComponentName = solutionComponentNames.get(entityLogicalName);
+
+  if (!solutionComponentName) {
+    throw new Error(`Dataverse did not return a solution component definition for ${entityLogicalName}.`);
+  }
+
+  return solutionComponentName;
+}
+
+/** Layers that were never overwritten, such as the active one, come back with a 1900 sentinel. */
+function asOverwriteTime(value: unknown): string {
+  const text = asString(value);
+
+  if (!text) {
+    return "";
+  }
+
+  const overwriteTime = new Date(text);
+  return Number.isNaN(overwriteTime.getTime()) || overwriteTime.getUTCFullYear() <= 1900
+    ? ""
+    : text;
+}
+
+export async function listComponentLayers(
+  dataverseAPI: DataverseAPI.API,
+  entityLogicalName: LayeredComponentEntity,
+  componentId: string,
+): Promise<ComponentLayerRecord[]> {
+  const solutionComponentName = await getSolutionComponentName(dataverseAPI, entityLogicalName);
+  const result = await dataverseAPI.queryData(
+    createComponentLayersQuery(solutionComponentName, componentId),
+  );
+
+  return result.value.map((record) => ({
+    id: asString(record.msdyn_componentlayerid) ?? "",
+    name: asString(record.msdyn_name) ?? "",
+    solutionName: asString(record.msdyn_solutionname) ?? "",
+    publisherName: asString(record.msdyn_publishername) ?? "",
+    order: asNumber(record.msdyn_order),
+    overwriteTime: asOverwriteTime(record.msdyn_overwritetime),
+  }));
+}
+
+/** The plugin component to managed identity link is a lookup, so it is bound and cleared with a PATCH. */
+export async function setComponentManagedIdentity(
+  dataverseAPI: DataverseAPI.API,
+  entityLogicalName: PluginComponentEntity,
+  componentId: string,
+  managedIdentityId: string | null,
+): Promise<void> {
+  await dataverseAPI.update(entityLogicalName, componentId, {
+    "managedidentityid@odata.bind": managedIdentityId
+      ? `/managedidentities(${managedIdentityId})`
+      : null,
   });
 }
 

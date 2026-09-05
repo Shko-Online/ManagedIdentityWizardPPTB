@@ -15,27 +15,29 @@
  */
 
 import { DataverseAPIMock } from '@shko.online/pptb-mock';
+import managedIdentitiesFixture from './fixtures/managedidentities.json';
 import pluginAssembliesFixture from './fixtures/pluginassemblies.json';
 import pluginAssembliesStandaloneFixture from './fixtures/pluginassemblies-standalone.json';
 import pluginPackagesFixture from './fixtures/pluginpackages.json';
 import retrieveCurrentOrganizationFixture from './fixtures/retrievecurrentorganization.json';
 import solutionComponentDefinitionsFixture from './fixtures/solutioncomponentdefinitions.json';
+import solutionComponentNamesFixture from './fixtures/solutioncomponentnames.json';
 import solutionComponentsPluginFixture from './fixtures/solutioncomponents-plugin.json';
 import solutionComponentsPluginPackageFixture from './fixtures/solutioncomponents-pluginpackage.json';
 import solutionsFixture from './fixtures/solutions.json';
 
 /** Kept byte-identical to the query strings built in src/services/pluginPackageService.ts. */
 const MANAGED_IDENTITY_EXPAND =
-  '$expand=managedidentityid($select=managedidentityid,name,applicationid,tenantid,credentialsource,subjectscope,version,statecode,ismanaged)';
+  '$expand=managedidentityid($select=managedidentityid,name,applicationid,tenantid,credentialsource,subjectscope,version,statecode,ismanaged,iscustomizable)';
 
 const PLUGIN_PACKAGE_QUERY = [
-  'pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,statecode,statuscode,createdon,modifiedon,_managedidentityid_value',
+  'pluginpackages?$select=pluginpackageid,name,uniquename,version,package_name,fileid,ismanaged,iscustomizable,statecode,statuscode,createdon,modifiedon,_managedidentityid_value',
   MANAGED_IDENTITY_EXPAND,
   '$orderby=name',
 ].join('&');
 
 const PLUGIN_ASSEMBLY_QUERY = [
-  'pluginassemblies?$select=pluginassemblyid,name,version,ismanaged,createdon,modifiedon,_managedidentityid_value',
+  'pluginassemblies?$select=pluginassemblyid,name,version,ismanaged,iscustomizable,createdon,modifiedon,_managedidentityid_value',
   MANAGED_IDENTITY_EXPAND,
   '$filter=_packageid_value eq null',
   '$orderby=name',
@@ -43,6 +45,12 @@ const PLUGIN_ASSEMBLY_QUERY = [
 
 const PLUGIN_COMPONENT_DEFINITIONS_QUERY =
   "solutioncomponentdefinitions?$select=primaryentityname,solutioncomponenttype&$filter=primaryentityname eq 'pluginpackage'";
+
+const MANAGED_IDENTITY_QUERY =
+  'managedidentities?$select=managedidentityid,name,applicationid,tenantid,credentialsource,subjectscope,version,statecode,ismanaged,iscustomizable&$orderby=name';
+
+const SOLUTION_COMPONENT_NAMES_QUERY =
+  "solutioncomponentdefinitions?$select=name,primaryentityname&$filter=primaryentityname eq 'managedidentity' or primaryentityname eq 'pluginassembly' or primaryentityname eq 'pluginpackage'";
 
 const SOLUTIONS_QUERY =
   'solutions?$select=solutionid,ismanaged,uniquename,version,createdon,modifiedon&$expand=publisherid($select=friendlyname,uniquename)';
@@ -116,8 +124,68 @@ function toBase64(bytes: Uint8Array): string {
 export function createDataverseAPIMock(): DataverseAPIMock {
   const api = new DataverseAPIMock();
 
-  api.queryData.withArgs(PLUGIN_PACKAGE_QUERY).resolves(asQueryResult(pluginPackagesFixture));
-  api.queryData.withArgs(PLUGIN_ASSEMBLY_QUERY).resolves(asQueryResult(pluginAssembliesFixture));
+  // Mutable copies so create/update calls made by the tool are visible on the next query.
+  const identities = structuredClone(managedIdentitiesFixture.value) as Record<string, unknown>[];
+  const packages = structuredClone(pluginPackagesFixture.value) as Record<string, unknown>[];
+  const assemblies = structuredClone(pluginAssembliesFixture.value) as Record<string, unknown>[];
+
+  // The captures predate the iscustomizable column; lock the managed records so both states show.
+  for (const record of [...identities, ...packages, ...assemblies]) {
+    record.iscustomizable = { Value: record.ismanaged !== true, CanBeChanged: false };
+  }
+
+  for (const component of [...packages, ...assemblies]) {
+    const identity = component.managedidentityid as Record<string, unknown> | null;
+
+    if (identity) {
+      identity.iscustomizable = { Value: identity.ismanaged !== true, CanBeChanged: false };
+    }
+  }
+
+  const findIdentity = (id: string) =>
+    identities.find((identity) => identity.managedidentityid === id) ?? null;
+
+  api.queryData.withArgs(PLUGIN_PACKAGE_QUERY).callsFake(async () => ({ value: packages }));
+  api.queryData.withArgs(PLUGIN_ASSEMBLY_QUERY).callsFake(async () => ({ value: assemblies }));
+  api.queryData.withArgs(MANAGED_IDENTITY_QUERY).callsFake(async () => ({
+    value: identities
+      .slice()
+      .sort((left, right) => String(left.name).localeCompare(String(right.name))),
+  }));
+  api.create.withArgs('managedidentity').callsFake(async (_entityLogicalName, record) => {
+    const id = crypto.randomUUID();
+    identities.push({ ...record, managedidentityid: id, statecode: 0, ismanaged: false });
+    return { id };
+  });
+  api.update.callsFake(async (entityLogicalName, id, record) => {
+    if (entityLogicalName === 'managedidentity') {
+      const identity = findIdentity(id);
+
+      if (!identity) {
+        throw new Error(`No managed identity with id ${id}.`);
+      }
+
+      Object.assign(identity, record);
+      return;
+    }
+
+    const idAttribute =
+      entityLogicalName === 'pluginpackage' ? 'pluginpackageid' : 'pluginassemblyid';
+    const component = (entityLogicalName === 'pluginpackage' ? packages : assemblies).find(
+      (candidate) => candidate[idAttribute] === id,
+    );
+
+    if (!component) {
+      throw new Error(`No ${entityLogicalName} with id ${id}.`);
+    }
+
+    const bind = record['managedidentityid@odata.bind'];
+    const identityId =
+      typeof bind === 'string' ? (/\(([^)]+)\)/.exec(bind)?.[1] ?? null) : null;
+    component._managedidentityid_value = identityId;
+    component.managedidentityid = identityId ? findIdentity(identityId) : null;
+  });
+
   api.queryData
     .withArgs(STANDALONE_ASSEMBLIES_QUERY)
     .resolves(asQueryResult(pluginAssembliesStandaloneFixture));
@@ -154,6 +222,60 @@ export function createDataverseAPIMock(): DataverseAPIMock {
       });
     }
   }
+
+  api.queryData
+    .withArgs(SOLUTION_COMPONENT_NAMES_QUERY)
+    .resolves(asQueryResult(solutionComponentNamesFixture));
+
+  // Layer queries are per component, so they are answered by the default behaviour; sinon still
+  // prefers the withArgs stubs above for every other query.
+  api.queryData.callsFake(async (odataQuery) => {
+    const match = /msdyn_componentid eq '([^']+)' and msdyn_solutioncomponentname eq '([^']+)'/.exec(
+      odataQuery,
+    );
+
+    if (!match) {
+      throw new Error(`Please mock the 'dataverseAPI.queryData' method for '${odataQuery}'.`);
+    }
+
+    const [, componentId, solutionComponentName] = match;
+    const owner =
+      identities.find((identity) => identity.managedidentityid === componentId) ??
+      packages.find((candidate) => candidate.pluginpackageid === componentId) ??
+      assemblies.find((candidate) => candidate.pluginassemblyid === componentId);
+
+    return {
+      value: owner?.ismanaged
+        ? [
+            {
+              msdyn_componentlayerid: `${componentId}-active`,
+              msdyn_name: solutionComponentName,
+              msdyn_solutionname: 'Active',
+              msdyn_publishername: 'Shko Online',
+              msdyn_order: 2,
+              msdyn_overwritetime: '1900-01-01T00:00:00Z',
+            },
+            {
+              msdyn_componentlayerid: `${componentId}-managed`,
+              msdyn_name: solutionComponentName,
+              msdyn_solutionname: 'Shko Online Storage Managed Identity',
+              msdyn_publishername: 'Shko Online',
+              msdyn_order: 1,
+              msdyn_overwritetime: '2026-02-14T09:12:00Z',
+            },
+          ]
+        : [
+            {
+              msdyn_componentlayerid: `${componentId}-active`,
+              msdyn_name: solutionComponentName,
+              msdyn_solutionname: 'Active',
+              msdyn_publishername: 'Shko Online',
+              msdyn_order: 1,
+              msdyn_overwritetime: '1900-01-01T00:00:00Z',
+            },
+          ],
+    };
+  });
 
   api.execute.callsFake(async (request) => {
     const parameters = (request.parameters ?? {}) as Record<string, unknown>;

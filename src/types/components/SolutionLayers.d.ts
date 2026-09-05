@@ -14,22 +14,17 @@
    limitations under the License.
  */
 
-import type {
-  ManagedIdentityRecord,
-  PluginAssemblyRecord,
-  PluginPackageRecord,
-} from "../../services/pluginPackageService";
+import type { LayeredComponentEntity } from "../services/pluginPackageService";
 
-export interface ManagedIdentityDetailsPopupProps {
-  managedIdentity: ManagedIdentityRecord;
-  /** Plugin packages currently bound to this identity. */
-  associatedPackages: PluginPackageRecord[];
-  /** Plugin assemblies currently bound to this identity. */
-  associatedAssemblies: PluginAssemblyRecord[];
-  tenantId: string;
+export interface SolutionLayersProps {
+  entityLogicalName: LayeredComponentEntity;
+  componentId: string;
+  /** Drives the warning that editing a managed component creates an unmanaged customization. */
+  isManaged: boolean;
+  /** Suppresses that warning when the component is locked and cannot be changed anyway. */
+  isCustomizable: boolean;
+  /** Wording for the warning, for example "managed identity" or "plugin package". */
+  componentLabel: string;
+  /** Needed to build the maker portal link; the command is hidden without it. */
   environmentId: string;
-  /** Failure from the last copy attempt, shown inside the popup. */
-  copyError: string | null;
-  onCopy: (label: string, value: string) => void;
-  onClose: () => void;
 }
