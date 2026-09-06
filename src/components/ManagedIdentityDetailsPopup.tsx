@@ -46,6 +46,7 @@ import {
   managedIdentityVersionOptions,
   subjectScopeOptions,
 } from "../services/pluginPackageInspector";
+import type { ManagedIdentityInput } from "../services/pluginPackageService";
 import type { ManagedIdentityDetailsPopupProps } from "../types/components/ManagedIdentityDetailsPopup";
 import EllipsisText from "./EllipsisText";
 import { SolutionLayers } from "./SolutionLayers";
@@ -69,10 +70,21 @@ export function ManagedIdentityDetailsPopup({
   environmentId,
   copyError,
   onCopy,
+  onUpdate,
+  onManageAssociation,
   onClose,
 }: ManagedIdentityDetailsPopupProps) {
   const styles = useManagedIdentityDetailsStyles();
   const [activeTab, setActiveTab] = useState<DetailsTab>("layers");
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<ManagedIdentityInput>({
+    name: managedIdentity.name,
+    applicationId: managedIdentity.applicationId ?? "",
+    tenantId: managedIdentity.tenantId ?? "",
+    credentialSource: managedIdentity.credentialSource ?? 2,
+    subjectScope: managedIdentity.subjectScope ?? 1,
+    version: managedIdentity.version ?? 2,
+  });
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -85,30 +97,65 @@ export function ManagedIdentityDetailsPopup({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    setDraft({
+      name: managedIdentity.name,
+      applicationId: managedIdentity.applicationId ?? "",
+      tenantId: managedIdentity.tenantId ?? "",
+      credentialSource: managedIdentity.credentialSource ?? 2,
+      subjectScope: managedIdentity.subjectScope ?? 1,
+      version: managedIdentity.version ?? 2,
+    });
+    setIsEditing(false);
+  }, [managedIdentity]);
+
+  const canEdit = managedIdentity.isCustomizable !== false;
+  const changes: Partial<ManagedIdentityInput> = {};
+  const original = {
+    name: managedIdentity.name,
+    applicationId: managedIdentity.applicationId ?? "",
+    tenantId: managedIdentity.tenantId ?? "",
+    credentialSource: managedIdentity.credentialSource ?? 2,
+    subjectScope: managedIdentity.subjectScope ?? 1,
+    version: managedIdentity.version ?? 2,
+  };
+
+  (Object.keys(original) as Array<keyof ManagedIdentityInput>).forEach((field) => {
+    const currentValue = draft[field] as string | number;
+    const originalValue = original[field] as string | number;
+    if (field === "name") {
+      if ((currentValue as string).trim() !== (originalValue as string).trim()) {
+        changes[field] = currentValue as never;
+      }
+    } else if (currentValue !== originalValue) {
+      changes[field] = currentValue as never;
+    }
+  });
+
   const copyableFields: Array<{ id: string; label: string; value: string | null }> = [
-    { id: "managed-identity-application-id", label: "Application ID", value: managedIdentity.applicationId },
-    { id: "managed-identity-tenant-id", label: "Tenant ID", value: managedIdentity.tenantId },
+    { id: "managed-identity-application-id", label: "Application ID", value: draft.applicationId || managedIdentity.applicationId },
+    { id: "managed-identity-tenant-id", label: "Tenant ID", value: draft.tenantId || managedIdentity.tenantId },
   ];
   const choiceFields: ChoiceField[] = [
     {
       id: "managed-identity-credential-source",
       label: "Credential source",
-      value: managedIdentity.credentialSource,
-      displayValue: getCredentialSourceLabel(managedIdentity.credentialSource),
+      value: isEditing ? draft.credentialSource : managedIdentity.credentialSource,
+      displayValue: getCredentialSourceLabel(isEditing ? draft.credentialSource : managedIdentity.credentialSource),
       options: credentialSourceOptions,
     },
     {
       id: "managed-identity-subject-scope",
       label: "Subject scope",
-      value: managedIdentity.subjectScope,
-      displayValue: getSubjectScopeLabel(managedIdentity.subjectScope),
+      value: isEditing ? draft.subjectScope : managedIdentity.subjectScope,
+      displayValue: getSubjectScopeLabel(isEditing ? draft.subjectScope : managedIdentity.subjectScope),
       options: subjectScopeOptions,
     },
     {
       id: "managed-identity-fic-version",
       label: "FIC subject version",
-      value: managedIdentity.version,
-      displayValue: getManagedIdentityVersionLabel(managedIdentity.version),
+      value: isEditing ? draft.version : managedIdentity.version,
+      displayValue: getManagedIdentityVersionLabel(isEditing ? draft.version : managedIdentity.version),
       options: managedIdentityVersionOptions,
     },
     {
@@ -122,6 +169,12 @@ export function ManagedIdentityDetailsPopup({
   const associatedComponents =
     activeTab === "assemblies" ? associatedAssemblies : associatedPackages;
 
+  const saveChanges = () => {
+    if (onUpdate) {
+      onUpdate(changes);
+    }
+  };
+
   return (
     <div className={styles.overlay} role="presentation" onMouseDown={onClose}>
       <section
@@ -133,7 +186,14 @@ export function ManagedIdentityDetailsPopup({
       >
         <div className={styles.header}>
           <Text id="managed-identity-details-title" weight="semibold" size={400}>Managed identity details</Text>
-          <Button appearance="subtle" icon={<Dismiss24Regular />} aria-label="Close managed identity details" onClick={onClose} />
+          <div style={{ display: "flex", gap: "8px" }}>
+            {canEdit && !isEditing && (
+              <Button appearance="secondary" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+            )}
+            <Button appearance="subtle" icon={<Dismiss24Regular />} aria-label="Close managed identity details" onClick={onClose} />
+          </div>
         </div>
         <div className={styles.body}>
           {copyError && (
@@ -148,16 +208,29 @@ export function ManagedIdentityDetailsPopup({
               </MessageBarBody>
             </MessageBar>
           )}
-          {managedIdentity.version !== null && managedIdentity.version !== 2 && (
+          {managedIdentity.version === 0 && (
             <MessageBar intent="warning">
               <MessageBarBody>
-                This managed identity uses federated credential subject version {managedIdentity.version}. The generated subject identifier uses version 2.
+                This managed identity uses deprecated federated credential subject version 0. Version 2 is recommended for new configurations.
+              </MessageBarBody>
+            </MessageBar>
+          )}
+          {managedIdentity.isCustomizable === false && (
+            <MessageBar intent="warning">
+              <MessageBarBody>
+                This managed identity does not allow customizations.
               </MessageBarBody>
             </MessageBar>
           )}
           <div className={styles.fields}>
             <Label className={styles.label} htmlFor="managed-identity-name">Name</Label>
-            <Input id="managed-identity-name" className={styles.control} readOnly value={managedIdentity.name} />
+            <Input
+              id="managed-identity-name"
+              className={styles.control}
+              readOnly={!isEditing}
+              value={draft.name}
+              onChange={(_event, data) => setDraft((current) => ({ ...current, name: data.value }))}
+            />
             <span className={styles.actionCell} />
 
             {copyableFields.map((field) => (
@@ -167,9 +240,17 @@ export function ManagedIdentityDetailsPopup({
                   id={field.id}
                   className={styles.control}
                   input={{ className: styles.monospaceInput }}
-                  readOnly
+                  readOnly={!isEditing}
                   value={field.value ?? ""}
                   placeholder="-"
+                  onChange={(_event, data) => {
+                    const nextValue = data.value;
+                    if (field.label === "Application ID") {
+                      setDraft((current) => ({ ...current, applicationId: nextValue }));
+                    } else {
+                      setDraft((current) => ({ ...current, tenantId: nextValue }));
+                    }
+                  }}
                 />
                 <span className={styles.actionCell}>
                   {field.value && (
@@ -191,9 +272,21 @@ export function ManagedIdentityDetailsPopup({
                 <Dropdown
                   id={field.id}
                   className={styles.control}
-                  disabled
+                  disabled={!isEditing || field.label === "Status"}
                   value={field.displayValue}
                   selectedOptions={field.value === null ? [] : [String(field.value)]}
+                  onOptionSelect={(_event, data) => {
+                    const value = Number(data.optionValue ?? field.value ?? 0);
+                    if (field.id === "managed-identity-credential-source") {
+                      setDraft((current) => ({ ...current, credentialSource: value }));
+                    }
+                    if (field.id === "managed-identity-subject-scope") {
+                      setDraft((current) => ({ ...current, subjectScope: value }));
+                    }
+                    if (field.id === "managed-identity-fic-version") {
+                      setDraft((current) => ({ ...current, version: value }));
+                    }
+                  }}
                 >
                   {field.options.map((option) => (
                     <Option key={option.value} value={String(option.value)}>{option.label}</Option>
@@ -244,6 +337,7 @@ export function ManagedIdentityDetailsPopup({
                       <TableHeaderCell>Name</TableHeaderCell>
                       <TableHeaderCell className={styles.versionColumn}>Version</TableHeaderCell>
                       <TableHeaderCell className={styles.typeColumn}>Type</TableHeaderCell>
+                      {isEditing && onManageAssociation && <TableHeaderCell className={styles.typeColumn}>Action</TableHeaderCell>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -258,6 +352,18 @@ export function ManagedIdentityDetailsPopup({
                             {component.isManaged ? "M" : "U"}
                           </Badge>
                         </TableCell>
+                        {isEditing && onManageAssociation && (
+                          <TableCell className={styles.typeColumn}>
+                            <Button
+                              appearance="subtle"
+                              size="small"
+                              onClick={() => onManageAssociation(component)}
+                              disabled={!component.isCustomizable}
+                            >
+                              {component.isCustomizable ? "Manage" : "Read-only"}
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -266,6 +372,16 @@ export function ManagedIdentityDetailsPopup({
             </div>
           )}
         </div>
+        {isEditing && (
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "12px" }}>
+            <Button appearance="secondary" onClick={() => setIsEditing(false)}>
+              Cancel
+            </Button>
+            <Button appearance="primary" disabled={Object.keys(changes).length === 0 || !canEdit} onClick={saveChanges}>
+              Save changes
+            </Button>
+          </div>
+        )}
       </section>
     </div>
   );

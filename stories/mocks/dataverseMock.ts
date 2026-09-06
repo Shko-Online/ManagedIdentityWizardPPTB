@@ -80,6 +80,99 @@ const ASSEMBLY_BINARIES: Record<string, string> = {
   '1d12029f-dbc8-48f4-8544-93a3da743658': 'Microsoft.PowerPages.Core.Plugins.dll',
 };
 
+const toManagedProperty = (value: boolean) => ({ Value: value, CanBeChanged: false });
+
+const buildMatrixRecords = () => {
+  const identities: Record<string, unknown>[] = [];
+  const packages: Record<string, unknown>[] = [];
+  const assemblies: Record<string, unknown>[] = [];
+
+  const combos = [
+    { signed: true, managed: true, customizable: true },
+    { signed: true, managed: true, customizable: false },
+    { signed: true, managed: false, customizable: true },
+    { signed: true, managed: false, customizable: false },
+    { signed: false, managed: false, customizable: true },
+    { signed: false, managed: false, customizable: false },
+  ] as const;
+
+  const buildIdentity = (suffix: string, customizable: boolean) => {
+    const id = crypto.randomUUID();
+    const identity = {
+      managedidentityid: id,
+      name: `Mock Identity ${suffix}`,
+      applicationid: `11111111-1111-1111-1111-${suffix.padStart(12, '0')}`.slice(0, 36),
+      tenantid: 'f0f0f0f0-1111-2222-3333-444455556666',
+      credentialsource: 2,
+      subjectscope: 1,
+      version: 2,
+      statecode: 0,
+      ismanaged: true,
+      iscustomizable: toManagedProperty(customizable),
+    };
+    identities.push(identity);
+    return identity;
+  };
+
+  for (const [index, combo] of combos.entries()) {
+    const packageSuffix = `${combo.signed ? 'signed' : 'unsigned'}-${combo.managed ? 'managed' : 'unmanaged'}-${combo.customizable ? 'customizable' : 'fixed'}`;
+    const assemblySuffix = packageSuffix;
+
+    const packageId = `mock-package-${index}`;
+    const assemblyId = `mock-assembly-${index}`;
+    const packageName = `mock_Package_${packageSuffix.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const assemblyName = `mock_Assembly_${assemblySuffix.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+    const packageManagedIdentity = combo.managed
+      ? buildIdentity(packageName, combo.customizable)
+      : null;
+    const assemblyManagedIdentity = combo.managed
+      ? buildIdentity(`${assemblyName}_mi`, combo.customizable)
+      : null;
+
+    const packageRecord = {
+      pluginpackageid: packageId,
+      name: packageName,
+      uniquename: packageName,
+      version: '1.0.0',
+      package_name: combo.signed ? `${packageName}.nupkg` : `${packageName}_unsigned.nupkg`,
+      fileid: null,
+      ismanaged: combo.managed,
+      iscustomizable: toManagedProperty(combo.customizable),
+      statecode: 0,
+      statuscode: 1,
+      createdon: '2024-01-01T00:00:00Z',
+      modifiedon: '2024-01-02T00:00:00Z',
+      _managedidentityid_value: packageManagedIdentity ? packageManagedIdentity.managedidentityid : null,
+      managedidentityid: packageManagedIdentity,
+    };
+
+    const assemblyRecord = {
+      pluginassemblyid: assemblyId,
+      name: assemblyName,
+      version: '1.0.0',
+      ismanaged: combo.managed,
+      iscustomizable: toManagedProperty(combo.customizable),
+      createdon: '2024-01-01T00:00:00Z',
+      modifiedon: '2024-01-02T00:00:00Z',
+      _managedidentityid_value: assemblyManagedIdentity ? assemblyManagedIdentity.managedidentityid : null,
+      managedidentityid: assemblyManagedIdentity,
+    };
+
+    packages.push(packageRecord);
+    assemblies.push(assemblyRecord);
+
+    if (combo.signed) {
+      PACKAGE_BINARIES[packageId] = 'albx_ShkoOnline.StorageMI.Plugins.nupkg';
+      ASSEMBLY_BINARIES[assemblyId] = 'Microsoft.PowerPages.Core.Plugins.dll';
+    } else {
+      PACKAGE_BINARIES[packageId] = 'albx_AlbanianXrm.PluginPackage.nupkg';
+    }
+  }
+
+  return { identities, packages, assemblies };
+};
+
 /** Signed package used by the inspection story. */
 export const SIGNED_PACKAGE_ID = 'db35d1e3-cda3-f111-b8db-00224899c4e3';
 export const SIGNED_PACKAGE_NAME = 'albx_ShkoOnline.StorageMI.Plugins';
@@ -123,11 +216,21 @@ function toBase64(bytes: Uint8Array): string {
 
 export function createDataverseAPIMock(): DataverseAPIMock {
   const api = new DataverseAPIMock();
+  const generated = buildMatrixRecords();
 
   // Mutable copies so create/update calls made by the tool are visible on the next query.
-  const identities = structuredClone(managedIdentitiesFixture.value) as Record<string, unknown>[];
-  const packages = structuredClone(pluginPackagesFixture.value) as Record<string, unknown>[];
-  const assemblies = structuredClone(pluginAssembliesFixture.value) as Record<string, unknown>[];
+  const identities = [
+    ...structuredClone(managedIdentitiesFixture.value),
+    ...generated.identities,
+  ] as Record<string, unknown>[];
+  const packages = [
+    ...structuredClone(pluginPackagesFixture.value),
+    ...generated.packages,
+  ] as Record<string, unknown>[];
+  const assemblies = [
+    ...structuredClone(pluginAssembliesFixture.value),
+    ...generated.assemblies,
+  ] as Record<string, unknown>[];
 
   // The captures predate the iscustomizable column; lock the managed records so both states show.
   for (const record of [...identities, ...packages, ...assemblies]) {
@@ -146,7 +249,23 @@ export function createDataverseAPIMock(): DataverseAPIMock {
     identities.find((identity) => identity.managedidentityid === id) ?? null;
 
   api.queryData.withArgs(PLUGIN_PACKAGE_QUERY).callsFake(async () => ({ value: packages }));
+  api.queryData
+    .withArgs("pluginpackages?$select=pluginpackageid,_managedidentityid_value")
+    .callsFake(async () => ({
+      value: packages.map((record) => ({
+        pluginpackageid: record.pluginpackageid,
+        _managedidentityid_value: record._managedidentityid_value ?? null,
+      })),
+    }));
   api.queryData.withArgs(PLUGIN_ASSEMBLY_QUERY).callsFake(async () => ({ value: assemblies }));
+  api.queryData
+    .withArgs("pluginassemblies?$select=pluginassemblyid,_managedidentityid_value")
+    .callsFake(async () => ({
+      value: assemblies.map((record) => ({
+        pluginassemblyid: record.pluginassemblyid,
+        _managedidentityid_value: record._managedidentityid_value ?? null,
+      })),
+    }));
   api.queryData.withArgs(MANAGED_IDENTITY_QUERY).callsFake(async () => ({
     value: identities
       .slice()

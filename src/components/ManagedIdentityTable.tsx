@@ -154,8 +154,32 @@ export const ManagedIdentityTable: React.FC<ManagedIdentityTableProps> = ({
               </TableCell>
               <TableCell className={styles.identityActionColumn}>
                 <div className={styles.actionButtons}>
-                  <Button appearance="subtle" icon={<Info24Regular />} aria-label={`View ${identity.name} details`} title={`View ${identity.name} details`} onClick={() => onViewDetails(identity)} />
-                  <Button appearance="subtle" icon={<Edit24Regular />} aria-label={`Edit ${identity.name}`} title={identity.isManaged ? "Managed records can still be edited, but changes are overwritten on the next solution import." : `Edit ${identity.name}`} onClick={() => onEdit(identity)} disabled={isBusy} />
+                  <Button
+                    appearance="subtle"
+                    icon={<Info24Regular />}
+                    aria-label={`View details for ${identity.name}`}
+                    title={`View details for ${identity.name}`}
+                    onClick={() => onViewDetails(identity)}
+                  />
+                  <Button
+                    appearance="subtle"
+                    icon={<Edit24Regular />}
+                    aria-label={`Edit ${identity.name}`}
+                    title={
+                      identity.isCustomizable === false
+                        ? "This managed identity does not allow customizations."
+                        : identity.isManaged
+                          ? "Managed records can still be edited, but changes are overwritten on the next solution import."
+                          : `Edit ${identity.name}`
+                    }
+                    onClick={() => {
+                      if (identity.isCustomizable === false) {
+                        return;
+                      }
+                      onEdit(identity);
+                    }}
+                    disabled={isBusy || identity.isCustomizable === false}
+                  />
                 </div>
               </TableCell>
             </TableRow>

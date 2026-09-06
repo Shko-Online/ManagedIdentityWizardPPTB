@@ -42,7 +42,7 @@ const useStyles = makeStyles({
     alignItems: "center",
     justifyContent: "space-between",
     gap: tokens.spacingHorizontalM,
-    padding: tokens.spacingVerticalM,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
   },
   body: {
@@ -75,8 +75,8 @@ const useStyles = makeStyles({
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: tokens.spacingHorizontalS,
-    padding: tokens.spacingVerticalM,
+    gap: tokens.spacingHorizontalXS,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
   },
 });

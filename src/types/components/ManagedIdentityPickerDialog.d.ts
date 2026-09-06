@@ -21,6 +21,7 @@ export interface ManagedIdentityPickerDialogProps {
   componentName: string;
   componentType: "assembly" | "package";
   componentIsCustomizable: boolean;
+  isSigned: boolean;
   currentManagedIdentityId: string | null;
   tenantId: string;
   isSaving: boolean;

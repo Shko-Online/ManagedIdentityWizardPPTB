@@ -408,12 +408,17 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
               subjectDistinguishedName:
                 inspection.certificate.subjectDistinguishedName,
             };
-        const result = await buildManagedIdentitySubject({
-          tenantId: tenantId.trim(),
-          environmentId: environmentId.trim(),
-          cloud,
-          certificate,
-        });
+        const configuredIdentityVersion =
+          detailsComponent?.managedIdentity?.version ?? 2;
+        const result = await buildManagedIdentitySubject(
+          {
+            tenantId: tenantId.trim(),
+            environmentId: environmentId.trim(),
+            cloud,
+            certificate,
+          },
+          configuredIdentityVersion,
+        );
 
         if (isCurrent) {
           setIdentityResult(result);
@@ -567,9 +572,9 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
         );
       }
 
-      if (managedIdentity.version !== null && managedIdentity.version !== 2) {
+      if (managedIdentity.version === 0) {
         addLog(
-          `Managed identity ${managedIdentity.name} uses federated credential subject version ${managedIdentity.version}. The generated subject identifier uses version 2.`,
+          `Managed identity ${managedIdentity.name} uses deprecated federated credential subject version 0. Version 2 is recommended for new configurations.`,
           "warning",
         );
       }
@@ -899,6 +904,9 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   );
 
   const manageePackageIdentity = useCallback((packageRecord: PluginPackageRecord) => {
+    if (inspection?.signatureStatus !== "signed" || inspectedComponentId !== packageRecord.id) {
+      return;
+    }
     setAssociationError(null);
     setAssociationTarget({
       entityLogicalName: "pluginpackage",
@@ -908,9 +916,12 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
       isCustomizable: packageRecord.isCustomizable,
       managedIdentityId: packageRecord.managedIdentityId,
     });
-  }, []);
+  }, [inspection, inspectedComponentId]);
 
   const manageAssemblyIdentity = useCallback((assemblyRecord: PluginAssemblyRecord) => {
+    if (inspection?.signatureStatus !== "signed" || inspectedComponentId !== assemblyRecord.id) {
+      return;
+    }
     setAssociationError(null);
     setAssociationTarget({
       entityLogicalName: "pluginassembly",
@@ -920,7 +931,7 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
       isCustomizable: assemblyRecord.isCustomizable,
       managedIdentityId: assemblyRecord.managedIdentityId,
     });
-  }, []);
+  }, [inspection, inspectedComponentId]);
 
   const solutionPackages =
     selectedSolutionId && solutionComponentIds
@@ -934,6 +945,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
           solutionComponentIds.assemblies.has(assemblyRecord.id),
         )
       : assemblies;
+  const solutionIdentityIds = new Set(
+    [...solutionPackages, ...solutionAssemblies]
+      .map((componentRecord) => componentRecord.managedIdentityId)
+      .filter((managedIdentityId): managedIdentityId is string => Boolean(managedIdentityId)),
+  );
   const openSolutionPicker = useCallback(() => {
     setIsSolutionPickerOpen(true);
   }, []);
@@ -944,11 +960,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   const visibleAssemblies = solutionAssemblies.filter((assemblyRecord) =>
     nameMatcher(assemblyRecord.name),
   );
-  const visibleIdentities = identities.filter((identity) =>
-    nameMatcher(identity.name),
-  );
+  const visibleIdentities = identities
+    .filter((identity) => solutionIdentityIds.has(identity.id))
+    .filter((identity) => nameMatcher(identity.name));
   const identityUsageCounts = new Map<string, number>();
-  for (const componentRecord of [...packages, ...assemblies]) {
+  for (const componentRecord of [...solutionPackages, ...solutionAssemblies]) {
     if (componentRecord.managedIdentityId) {
       identityUsageCounts.set(
         componentRecord.managedIdentityId,
@@ -1105,18 +1121,6 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
             {connection ? (
               <>
                 <Button
-                  appearance="secondary"
-                  icon={<Add24Regular />}
-                  onClick={() => {
-                    setEditedIdentity(null);
-                    setIdentitySaveError(null);
-                    setIsEditorOpen(true);
-                  }}
-                  disabled={isLoading || isSavingIdentity}
-                >
-                  New managed identity
-                </Button>
-                <Button
                   appearance="primary"
                   icon={<ArrowSync24Regular />}
                   onClick={refreshPackages}
@@ -1157,8 +1161,24 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                     </MenuItem>
                   )}
                   <MenuItem
+                    icon={<Add24Regular />}
+                    onClick={() => {
+                      setEditedIdentity(null);
+                      setIdentitySaveError(null);
+                      setIsEditorOpen(true);
+                    }}
+                    disabled={isLoading || isSavingIdentity}
+                  >
+                    New managed identity
+                  </MenuItem>
+                  <MenuItem
                     icon={<Settings24Regular />}
-                    onClick={() => setIsSettingsOpen(true)}
+                    onClick={() => {
+                      setDetailsComponent(null);
+                      setDetailsError(null);
+                      setDetailsIdentity(null);
+                      setIsSettingsOpen(true);
+                    }}
                   >
                     Managed identity settings
                   </MenuItem>
@@ -1226,7 +1246,6 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                     onHoverInspect={setHoveredInspectId}
                     onInspect={inspectPackage}
                     onExport={exportPackage}
-                    onManageIdentity={manageePackageIdentity}
                     onViewDetails={(packageRecord) => {
                       setDetailsError(null);
                       setDetailsComponent(toPackageDetails(packageRecord));
@@ -1248,7 +1267,6 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                     onHoverInspect={setHoveredInspectId}
                     onInspect={inspectAssembly}
                     onExport={exportAssembly}
-                    onManageIdentity={manageAssemblyIdentity}
                     onViewDetails={(assemblyRecord) => {
                       setDetailsError(null);
                       setDetailsComponent(toAssemblyDetails(assemblyRecord));
@@ -1266,9 +1284,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                     sortKey={identitySortKey}
                     sortDescending={identitySortDescending}
                     onEdit={(identity) => {
-                      setEditedIdentity(identity);
-                      setIdentitySaveError(null);
-                      setIsEditorOpen(true);
+                      if (identity.isCustomizable === false) {
+                        return;
+                      }
+                      setDetailsError(null);
+                      setDetailsIdentity(identity);
                     }}
                     onViewDetails={(identity) => {
                       setDetailsError(null);
@@ -1434,13 +1454,56 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                   }
                 : null
           }
+          onExport={
+            detailsComponent.entityLogicalName === "pluginpackage"
+              ? () => {
+                  const packageRecord = packages.find(
+                    (candidate) => candidate.id === detailsComponent.id,
+                  );
+
+                  if (packageRecord) {
+                    void exportPackage(packageRecord);
+                  }
+                }
+              : detailsComponent.entityLogicalName === "pluginassembly"
+                ? () => {
+                    const assemblyRecord = assemblies.find(
+                      (candidate) => candidate.id === detailsComponent.id,
+                    );
+
+                    if (assemblyRecord) {
+                      void exportAssembly(assemblyRecord);
+                    }
+                  }
+                : null
+          }
           onCopy={copyFromDetails}
           onViewCertificate={() => setIsCertificateDetailsOpen(true)}
           onViewManagedIdentity={() => {
             setDetailsError(null);
             setDetailsIdentity(detailsComponent.managedIdentity);
           }}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onManageAssociation={() => {
+            if (!detailsComponent.entityLogicalName || !detailsComponent.id || inspection?.signatureStatus !== "signed" || !detailsComponent.isCustomizable) {
+              return;
+            }
+
+            setAssociationError(null);
+            setAssociationTarget({
+              entityLogicalName: detailsComponent.entityLogicalName,
+              componentType: detailsComponent.componentType,
+              id: detailsComponent.id,
+              name: detailsComponent.name,
+              isCustomizable: detailsComponent.isCustomizable,
+              managedIdentityId: detailsComponent.managedIdentity?.id ?? null,
+            });
+          }}
+          onOpenSettings={() => {
+            setDetailsComponent(null);
+            setDetailsError(null);
+            setDetailsIdentity(null);
+            setIsSettingsOpen(true);
+          }}
           onClose={() => {
             setDetailsComponent(null);
             setDetailsError(null);
@@ -1466,6 +1529,21 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
           environmentId={environmentId}
           copyError={detailsError}
           onCopy={copyFromDetails}
+          onUpdate={(changes) => {
+            setEditedIdentity(detailsIdentity);
+            setIdentitySaveError(null);
+            void updateIdentity(changes);
+          }}
+          onManageAssociation={(component) => {
+            if (component.isCustomizable === false) {
+              return;
+            }
+            if ("uniqueName" in component) {
+              manageePackageIdentity(component);
+            } else {
+              manageAssemblyIdentity(component);
+            }
+          }}
           onClose={() => {
             setDetailsIdentity(null);
             setDetailsError(null);
@@ -1478,12 +1556,18 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
           componentName={associationTarget.name}
           componentType={associationTarget.componentType}
           componentIsCustomizable={associationTarget.isCustomizable}
+          isSigned={inspection?.signatureStatus === "signed"}
           currentManagedIdentityId={associationTarget.managedIdentityId}
           tenantId={tenantId}
           isSaving={isSavingIdentity}
           saveError={associationError}
           onApply={applyAssociation}
           onCreateNew={() => {
+            if (inspection?.signatureStatus !== "signed") {
+              return;
+            }
+            setAssociationTarget(null);
+            setAssociationError(null);
             setEditedIdentity(null);
             setIdentitySaveError(null);
             setIsEditorOpen(true);

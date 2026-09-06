@@ -54,6 +54,7 @@ export interface SolutionRecord {
   modifiedOn: string;
   pluginCount: number;
   pluginPackageCount: number;
+  managedIdentityCount: number;
 }
 
 export interface PluginAssemblyRecord {
@@ -438,6 +439,8 @@ export async function listPluginSolutions(
     assemblyComponentsResult,
     packageComponentsResult,
     standaloneAssembliesResult,
+    packageRecordsResult,
+    assemblyRecordsResult,
   ] = await Promise.all([
     dataverseAPI.queryData(
       "solutions?$select=solutionid,ismanaged,uniquename,version,createdon,modifiedon&$expand=publisherid($select=friendlyname,uniquename)",
@@ -451,6 +454,12 @@ export async function listPluginSolutions(
     dataverseAPI.queryData(
       "pluginassemblies?$select=pluginassemblyid&$filter=_packageid_value eq null",
     ),
+    dataverseAPI.queryData(
+      "pluginpackages?$select=pluginpackageid,_managedidentityid_value",
+    ),
+    dataverseAPI.queryData(
+      "pluginassemblies?$select=pluginassemblyid,_managedidentityid_value",
+    ),
   ]);
   const standaloneAssemblyIds = new Set(
     standaloneAssembliesResult.value
@@ -458,7 +467,28 @@ export async function listPluginSolutions(
       .filter((id): id is string => id !== null),
   );
   const componentCounts = new Map<string, { plugins: number; packages: number }>();
-  console.log(assemblyComponentsResult.value, packageComponentsResult.value, standaloneAssemblyIds);
+  const identityCounts = new Map<string, Set<string>>();
+  const packageIdentityMap = new Map<string, string | null>();
+  const assemblyIdentityMap = new Map<string, string | null>();
+
+  for (const component of packageRecordsResult.value) {
+    const packageId = asString(component.pluginpackageid);
+    const managedIdentityId = asString(component._managedidentityid_value);
+
+    if (packageId) {
+      packageIdentityMap.set(packageId, managedIdentityId);
+    }
+  }
+
+  for (const component of assemblyRecordsResult.value) {
+    const assemblyId = asString(component.pluginassemblyid);
+    const managedIdentityId = asString(component._managedidentityid_value);
+
+    if (assemblyId) {
+      assemblyIdentityMap.set(assemblyId, managedIdentityId);
+    }
+  }
+
   for (const component of assemblyComponentsResult.value) {
     const solutionId = asString(component._solutionid_value);
     const assemblyId = asString(component.objectid);
@@ -466,15 +496,30 @@ export async function listPluginSolutions(
       const counts = componentCounts.get(solutionId) ?? { plugins: 0, packages: 0 };
       counts.plugins += 1;
       componentCounts.set(solutionId, counts);
+
+      const managedIdentityId = assemblyIdentityMap.get(assemblyId);
+      if (managedIdentityId) {
+        const solutionIdentities = identityCounts.get(solutionId) ?? new Set<string>();
+        solutionIdentities.add(managedIdentityId);
+        identityCounts.set(solutionId, solutionIdentities);
+      }
     }
   }
 
   for (const component of packageComponentsResult.value) {
     const solutionId = asString(component._solutionid_value);
-    if (solutionId) {
+    const packageId = asString(component.objectid);
+    if (solutionId && packageId) {
       const counts = componentCounts.get(solutionId) ?? { plugins: 0, packages: 0 };
       counts.packages += 1;
       componentCounts.set(solutionId, counts);
+
+      const managedIdentityId = packageIdentityMap.get(packageId);
+      if (managedIdentityId) {
+        const solutionIdentities = identityCounts.get(solutionId) ?? new Set<string>();
+        solutionIdentities.add(managedIdentityId);
+        identityCounts.set(solutionId, solutionIdentities);
+      }
     }
   }
 
@@ -500,6 +545,7 @@ export async function listPluginSolutions(
       modifiedOn: asString(record.modifiedon) ?? "",
       pluginCount: componentCounts.get(id)?.plugins ?? 0,
       pluginPackageCount: componentCounts.get(id)?.packages ?? 0,
+      managedIdentityCount: identityCounts.get(id)?.size ?? 0,
     };
   }).filter((solution) => solution.pluginCount > 0 || solution.pluginPackageCount > 0);
 }

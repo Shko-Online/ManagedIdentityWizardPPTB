@@ -30,6 +30,7 @@ import {
   Dismiss24Regular,
   DocumentSearch24Regular,
   PersonKey24Regular,
+  Save24Regular,
   Settings24Regular,
 } from "@fluentui/react-icons";
 import {
@@ -56,9 +57,11 @@ export function PluginComponentDetailsPopup({
   environmentId,
   copyError,
   onInspect,
+  onExport,
   onCopy,
   onViewCertificate,
   onViewManagedIdentity,
+  onManageAssociation,
   onOpenSettings,
   onClose,
 }: PluginComponentDetailsPopupProps) {
@@ -141,7 +144,11 @@ export function PluginComponentDetailsPopup({
                   <Text className={styles.muted}>
                     {component.hasManagedIdentity
                       ? "The related managed identity record could not be read."
-                      : `No managed identity is associated with this ${componentTypeLabel}.`}
+                      : inspection?.signatureStatus === "unsigned"
+                        ? component.componentType === "assembly"
+                          ? "Only signed assemblies can be assigned a managed identity."
+                          : "Only signed packages can be assigned a managed identity."
+                        : `No managed identity is associated with this ${componentTypeLabel}.`}
                   </Text>
                 )}
               </>
@@ -199,6 +206,7 @@ export function PluginComponentDetailsPopup({
                         <Button
                           appearance="transparent"
                           icon={<Settings24Regular />}
+                          title="Open managed identity settings"
                           onClick={onOpenSettings}
                         >
                           Open managed identity settings
@@ -214,6 +222,7 @@ export function PluginComponentDetailsPopup({
                         appearance="subtle"
                         icon={<Copy24Regular />}
                         aria-label="Copy issuer"
+                        title="Copy issuer"
                         onClick={() => onCopy("Issuer", issuer)}
                       />
                       <Text className={styles.label}>Subject identifier</Text>
@@ -227,6 +236,7 @@ export function PluginComponentDetailsPopup({
                         appearance="subtle"
                         icon={<Copy24Regular />}
                         aria-label="Copy subject identifier"
+                        title="Copy subject identifier"
                         onClick={() => onCopy("Subject identifier", identityResult.subjectIdentifier)}
                       />
                     </div>
@@ -237,21 +247,64 @@ export function PluginComponentDetailsPopup({
               <div className={styles.actions}>
                 {onInspect && (
                   <Button
+                    className={styles.compactActionButton}
+                    size="small"
                     icon={<DocumentSearch24Regular />}
+                    aria-label={inspection ? "Inspect this component again" : `Inspect ${componentTypeLabel}`}
+                    title={inspection ? "Inspect this component again" : `Inspect ${componentTypeLabel}`}
                     onClick={onInspect}
                     disabled={isInspecting}
                   >
-                    {inspection ? "Inspect again" : `Inspect ${componentTypeLabel}`}
+                    {inspection ? "Inspect" : `Inspect ${componentTypeLabel}`}
+                  </Button>
+                )}
+                {onExport && (
+                  <Button
+                    className={styles.compactActionButton}
+                    size="small"
+                    icon={<Save24Regular />}
+                    aria-label={component.componentType === "assembly" ? "Download this assembly" : "Download this package"}
+                    title={component.componentType === "assembly" ? "Download this assembly" : "Download this package"}
+                    onClick={onExport}
+                    disabled={isInspecting}
+                  >
+                    Download
                   </Button>
                 )}
                 {inspection?.signatureStatus === "signed" && (
-                  <Button icon={<Certificate24Regular />} onClick={onViewCertificate}>
-                    View certificate details
+                  <Button
+                    className={styles.compactActionButton}
+                    size="small"
+                    icon={<Certificate24Regular />}
+                    aria-label="View certificate details"
+                    title="View certificate details"
+                    onClick={onViewCertificate}
+                  >
+                    Certificate
                   </Button>
                 )}
                 {component.managedIdentity && (
-                  <Button icon={<PersonKey24Regular />} onClick={onViewManagedIdentity}>
-                    View managed identity details
+                  <Button
+                    className={styles.compactActionButton}
+                    size="small"
+                    icon={<PersonKey24Regular />}
+                    aria-label="View the associated managed identity"
+                    title="View the associated managed identity"
+                    onClick={onViewManagedIdentity}
+                  >
+                    Identity
+                  </Button>
+                )}
+                {!component.managedIdentity && inspection?.signatureStatus === "signed" && component.isCustomizable && onManageAssociation && (
+                  <Button
+                    className={styles.compactActionButton}
+                    size="small"
+                    icon={<PersonKey24Regular />}
+                    aria-label="Assign identity"
+                    title="Assign a managed identity to this signed and customizable component"
+                    onClick={onManageAssociation}
+                  >
+                    Assign identity
                   </Button>
                 )}
               </div>

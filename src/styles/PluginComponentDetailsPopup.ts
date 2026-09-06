@@ -42,7 +42,7 @@ const useStyles = makeStyles({
     alignItems: "center",
     justifyContent: "space-between",
     gap: tokens.spacingHorizontalM,
-    padding: tokens.spacingVerticalM,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
   },
   body: {
@@ -80,8 +80,17 @@ const useStyles = makeStyles({
   },
   actions: {
     display: "flex",
-    flexWrap: "wrap",
-    gap: tokens.spacingHorizontalS,
+    flexWrap: "nowrap",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
+    overflowX: "auto",
+    overflowY: "hidden",
+  },
+  compactActionButton: {
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+    minWidth: 0,
   },
   identifierGrid: {
     display: "grid",

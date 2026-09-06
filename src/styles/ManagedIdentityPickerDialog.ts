@@ -43,7 +43,7 @@ const useStyles = makeStyles({
     alignItems: "center",
     justifyContent: "space-between",
     gap: tokens.spacingHorizontalM,
-    padding: tokens.spacingVerticalM,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
   },
   filterInput: {
@@ -95,6 +95,18 @@ const useStyles = makeStyles({
     minWidth: "100px",
     textAlign: "center",
   },
+  headerButton: {
+    width: "100%",
+    justifyContent: "center",
+    fontWeight: 400,
+    padding: 0,
+    minWidth: 0,
+  },
+  sortIconSlot: {
+    display: "inline-flex",
+    width: "16px",
+    justifyContent: "center",
+  },
   selectableRow: {
     cursor: "pointer",
     "&:hover": {
@@ -115,15 +127,21 @@ const useStyles = makeStyles({
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: tokens.spacingHorizontalM,
+    gap: tokens.spacingHorizontalXS,
     flexWrap: "wrap",
-    padding: tokens.spacingVerticalM,
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
+  pagination: {
+    display: "flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
+    flexWrap: "wrap",
   },
   footerActions: {
     display: "flex",
     alignItems: "center",
-    gap: tokens.spacingHorizontalS,
+    gap: tokens.spacingHorizontalXS,
     marginLeft: "auto",
   },
   muted: {

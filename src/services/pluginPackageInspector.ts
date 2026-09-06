@@ -36,6 +36,7 @@ const managedIdentityStateLabels: Record<number, string> = {
 };
 
 const managedIdentityVersionLabels: Record<number, string> = {
+  0: "Version 0 (deprecated)",
   1: "Version 1",
   2: "Version 2",
 };
@@ -133,7 +134,7 @@ export function getCertificateIdentity(distinguishedName: string): string {
 }
 
 export type InspectedComponentType = "assembly" | "package";
-export type SolutionSortKey = "uniqueName" | "version" | "isManaged" | "publisher" | "createdOn" | "modifiedOn" | "pluginCount" | "pluginPackageCount";
+export type SolutionSortKey = "uniqueName" | "version" | "isManaged" | "publisher" | "createdOn" | "modifiedOn" | "pluginCount" | "pluginPackageCount" | "managedIdentityCount";
 
 export function getSignedLabel(componentType: InspectedComponentType, isSelfSigned: boolean): string {
   const certificateType = isSelfSigned ? "Self-Signed" : "Issuer-Signed";

@@ -49,9 +49,11 @@ export interface PluginComponentDetailsPopupProps {
   copyError: string | null;
   /** `null` for a file inspected from disk, which cannot be re-read from Dataverse. */
   onInspect: (() => void) | null;
+  onExport: (() => void) | null;
   onCopy: (label: string, value: string) => void;
   onViewCertificate: () => void;
   onViewManagedIdentity: () => void;
+  onManageAssociation?: () => void;
   onOpenSettings: () => void;
   onClose: () => void;
 }

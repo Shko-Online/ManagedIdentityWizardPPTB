@@ -314,6 +314,8 @@ const useStyles = makeStyles({
     border: `1px solid ${tokens.colorNeutralStroke1}`,
     borderRadius: tokens.borderRadiusMedium,
     boxShadow: tokens.shadow64,
+    display: "flex",
+    flexDirection: "column",
   },
   settingsHeader: {
     display: "flex",

@@ -166,6 +166,7 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                     "isManaged",
                     "pluginCount",
                     "pluginPackageCount",
+                    "managedIdentityCount",
                     "createdOn",
                     "modifiedOn",
                   ] as SolutionSortKey[]
@@ -179,6 +180,7 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                     modifiedOn: "Modified",
                     pluginCount: "Plugins",
                     pluginPackageCount: "Packages",
+                    managedIdentityCount: "MIs",
                   };
                   return (
                     <TableHeaderCell
@@ -191,7 +193,8 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                             : columnSortKey === "modifiedOn"
                               ? styles.modifiedColumn
                               : columnSortKey === "pluginCount" ||
-                                  columnSortKey === "pluginPackageCount"
+                                  columnSortKey === "pluginPackageCount" ||
+                                  columnSortKey === "managedIdentityCount"
                                 ? styles.countColumn
                                 : columnSortKey === "version"
                                   ? styles.versionColumn
@@ -203,6 +206,11 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                       <Button
                         className={styles.headerButton}
                         appearance="subtle"
+                        title={
+                          columnSortKey === "managedIdentityCount"
+                            ? "Managed Identities"
+                            : undefined
+                        }
                         onClick={() => sortSolutionsBy(columnSortKey)}
                       >
                         <span className={styles.sortIconSlot} aria-hidden="true" />
@@ -276,6 +284,9 @@ export const SolutionPickerDialog: React.FC<SolutionPickerDialogProps> = ({
                   </TableCell>
                   <TableCell className={styles.countColumn}>
                     {solution.pluginPackageCount}
+                  </TableCell>
+                  <TableCell className={styles.countColumn}>
+                    {solution.managedIdentityCount}
                   </TableCell>
                   <TableCell className={styles.createdColumn}>
                     {formatSolutionDate(solution.createdOn)}

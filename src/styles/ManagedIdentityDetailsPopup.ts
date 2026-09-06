@@ -28,12 +28,13 @@ const useManagedIdentityDetailsStyles = makeStyles({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   popup: {
-    width: "min(640px, 100%)",
+    width: "min(760px, 100%)",
     maxHeight: "85vh",
     display: "flex",
     flexDirection: "column",
     backgroundColor: tokens.colorNeutralBackground1,
     border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusMedium,
     boxShadow: tokens.shadow64,
   },
   header: {
@@ -54,18 +55,23 @@ const useManagedIdentityDetailsStyles = makeStyles({
   },
   fields: {
     display: "grid",
-    gridTemplateColumns: "minmax(140px, 0.4fr) minmax(0, 1fr) 40px",
-    alignItems: "center",
+    gridTemplateColumns: "minmax(170px, 220px) minmax(0, 1fr) 48px",
+    alignItems: "stretch",
     rowGap: tokens.spacingVerticalS,
     columnGap: tokens.spacingHorizontalM,
   },
   label: {
+    display: "flex",
+    alignItems: "center",
     color: tokens.colorNeutralForeground2,
     fontWeight: tokens.fontWeightSemibold,
+    minHeight: "32px",
+    lineHeight: "1.4",
   },
   control: {
     width: "100%",
     minWidth: 0,
+    minHeight: "32px",
   },
   monospaceInput: {
     fontFamily: tokens.fontFamilyMonospace,
@@ -75,6 +81,7 @@ const useManagedIdentityDetailsStyles = makeStyles({
     alignItems: "center",
     justifyContent: "flex-end",
     minWidth: "40px",
+    minHeight: "32px",
   },
   tabs: {
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,

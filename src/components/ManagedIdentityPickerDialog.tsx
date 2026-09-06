@@ -28,7 +28,12 @@ import {
   TableRow,
   Text,
 } from "@fluentui/react-components";
-import { Add24Regular, Dismiss24Regular } from "@fluentui/react-icons";
+import {
+  Add24Regular,
+  ArrowSortDown24Regular,
+  ArrowSortUp24Regular,
+  Dismiss24Regular,
+} from "@fluentui/react-icons";
 import {
   getCredentialSourceLabel,
   getManagedIdentityStateLabel,
@@ -43,11 +48,20 @@ import { createPortal } from "react-dom";
 import { useContext, useEffect, useState } from "react";
 import useStyles from "../styles/ManagedIdentityPickerDialog";
 
+type ManagedIdentityPickerSortKey =
+  | "name"
+  | "applicationId"
+  | "tenantId"
+  | "credentialSource"
+  | "subjectScope"
+  | "stateCode";
+
 export function ManagedIdentityPickerDialog({
   identities,
   componentName,
   componentType,
   componentIsCustomizable,
+  isSigned,
   currentManagedIdentityId,
   tenantId,
   isSaving,
@@ -60,6 +74,10 @@ export function ManagedIdentityPickerDialog({
   const { menuRoot } = useContext(MenuRootContext);
   const [filter, setFilter] = useState("");
   const [pendingId, setPendingId] = useState(currentManagedIdentityId ?? "");
+  const [sortKey, setSortKey] = useState<ManagedIdentityPickerSortKey>("name");
+  const [sortDescending, setSortDescending] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -73,15 +91,74 @@ export function ManagedIdentityPickerDialog({
   }, [onClose]);
 
   const normalizedFilter = filter.trim().toLocaleLowerCase();
-  const visibleIdentities = identities.filter(
-    (identity) =>
-      !normalizedFilter ||
-      [identity.name, identity.applicationId ?? "", identity.tenantId ?? ""].some((value) =>
-        value.toLocaleLowerCase().includes(normalizedFilter),
-      ),
+  const visibleIdentities = identities
+    .filter(
+      (identity) =>
+        !normalizedFilter ||
+        [identity.name, identity.applicationId ?? "", identity.tenantId ?? ""].some((value) =>
+          value.toLocaleLowerCase().includes(normalizedFilter),
+        ),
+    )
+    .slice()
+    .sort((left, right) => {
+      const leftValue =
+        sortKey === "credentialSource"
+          ? getCredentialSourceLabel(left.credentialSource)
+          : sortKey === "subjectScope"
+            ? getSubjectScopeLabel(left.subjectScope)
+            : sortKey === "stateCode"
+              ? String(left.stateCode)
+              : String(left[sortKey] ?? "");
+      const rightValue =
+        sortKey === "credentialSource"
+          ? getCredentialSourceLabel(right.credentialSource)
+          : sortKey === "subjectScope"
+            ? getSubjectScopeLabel(right.subjectScope)
+            : sortKey === "stateCode"
+              ? String(right.stateCode)
+              : String(right[sortKey] ?? "");
+
+      const comparison = leftValue.localeCompare(rightValue, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      return sortDescending ? -comparison : comparison;
+    });
+  const pageCount = Math.max(1, Math.ceil(visibleIdentities.length / pageSize));
+  const pagedIdentities = visibleIdentities.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
   );
   const pendingIdentity = identities.find((identity) => identity.id === pendingId) ?? null;
   const hasChanged = (currentManagedIdentityId ?? "") !== pendingId;
+
+  const sortIdentitiesBy = (nextSortKey: ManagedIdentityPickerSortKey) => {
+    if (sortKey === nextSortKey) {
+      setSortDescending((descending) => !descending);
+      return;
+    }
+
+    setSortKey(nextSortKey);
+    setSortDescending(false);
+  };
+
+  const sortIcon = (columnSortKey: ManagedIdentityPickerSortKey) =>
+    sortKey === columnSortKey
+      ? sortDescending
+        ? <ArrowSortDown24Regular />
+        : <ArrowSortUp24Regular />
+      : undefined;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, identities.length, sortKey, sortDescending]);
+
+  useEffect(() => {
+    if (currentPage > pageCount) {
+      setCurrentPage(pageCount);
+    }
+  }, [currentPage, pageCount]);
 
   const dialog = (
     <div className={styles.overlay} role="presentation" onMouseDown={onClose}>
@@ -116,6 +193,13 @@ export function ManagedIdentityPickerDialog({
               <MessageBarBody>{saveError}</MessageBarBody>
             </MessageBar>
           )}
+          {!isSigned && (
+            <MessageBar intent="warning">
+              <MessageBarBody>
+                Only signed {componentType === "assembly" ? "assemblies" : "packages"} can be assigned a managed identity.
+              </MessageBarBody>
+            </MessageBar>
+          )}
           {!componentIsCustomizable && (
             <MessageBar intent="warning">
               <MessageBarBody>
@@ -136,22 +220,90 @@ export function ManagedIdentityPickerDialog({
             <TableHeader className={styles.tableHeader}>
               <TableRow>
                 <TableHeaderCell className={styles.checkboxColumn} />
-                <TableHeaderCell className={styles.nameColumn}>Name</TableHeaderCell>
-                <TableHeaderCell className={styles.guidColumn}>Application ID</TableHeaderCell>
-                <TableHeaderCell className={styles.guidColumn}>Tenant ID</TableHeaderCell>
-                <TableHeaderCell className={styles.choiceColumn}>Credential source</TableHeaderCell>
-                <TableHeaderCell className={styles.choiceColumn}>Subject scope</TableHeaderCell>
-                <TableHeaderCell className={styles.statusColumn}>Status</TableHeaderCell>
+                <TableHeaderCell className={styles.nameColumn}>
+                  <Button
+                    className={styles.headerButton}
+                    appearance="subtle"
+                    onClick={() => sortIdentitiesBy("name")}
+                  >
+                    <span className={styles.sortIconSlot} aria-hidden="true" />
+                    Name
+                    <span className={styles.sortIconSlot}>{sortIcon("name")}</span>
+                  </Button>
+                </TableHeaderCell>
+                <TableHeaderCell className={styles.guidColumn}>
+                  <Button
+                    className={styles.headerButton}
+                    appearance="subtle"
+                    onClick={() => sortIdentitiesBy("applicationId")}
+                  >
+                    <span className={styles.sortIconSlot} aria-hidden="true" />
+                    Application ID
+                    <span className={styles.sortIconSlot}>{sortIcon("applicationId")}</span>
+                  </Button>
+                </TableHeaderCell>
+                <TableHeaderCell className={styles.guidColumn}>
+                  <Button
+                    className={styles.headerButton}
+                    appearance="subtle"
+                    onClick={() => sortIdentitiesBy("tenantId")}
+                  >
+                    <span className={styles.sortIconSlot} aria-hidden="true" />
+                    Tenant ID
+                    <span className={styles.sortIconSlot}>{sortIcon("tenantId")}</span>
+                  </Button>
+                </TableHeaderCell>
+                <TableHeaderCell className={styles.choiceColumn}>
+                  <Button
+                    className={styles.headerButton}
+                    appearance="subtle"
+                    onClick={() => sortIdentitiesBy("credentialSource")}
+                  >
+                    <span className={styles.sortIconSlot} aria-hidden="true" />
+                    Credential source
+                    <span className={styles.sortIconSlot}>{sortIcon("credentialSource")}</span>
+                  </Button>
+                </TableHeaderCell>
+                <TableHeaderCell className={styles.choiceColumn}>
+                  <Button
+                    className={styles.headerButton}
+                    appearance="subtle"
+                    onClick={() => sortIdentitiesBy("subjectScope")}
+                  >
+                    <span className={styles.sortIconSlot} aria-hidden="true" />
+                    Subject scope
+                    <span className={styles.sortIconSlot}>{sortIcon("subjectScope")}</span>
+                  </Button>
+                </TableHeaderCell>
+                <TableHeaderCell className={styles.statusColumn}>
+                  <Button
+                    className={styles.headerButton}
+                    appearance="subtle"
+                    onClick={() => sortIdentitiesBy("stateCode")}
+                  >
+                    <span className={styles.sortIconSlot} aria-hidden="true" />
+                    Status
+                    <span className={styles.sortIconSlot}>{sortIcon("stateCode")}</span>
+                  </Button>
+                </TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleIdentities.map((identity) => (
+              {pagedIdentities.map((identity) => (
                 <TableRow
                   key={identity.id}
                   className={styles.selectableRow}
-                  tabIndex={0}
-                  onClick={() => setPendingId(identity.id === pendingId ? "" : identity.id)}
+                  tabIndex={componentIsCustomizable && isSigned ? 0 : -1}
+                  onClick={() => {
+                    if (!componentIsCustomizable || !isSigned) {
+                      return;
+                    }
+                    setPendingId(identity.id === pendingId ? "" : identity.id);
+                  }}
                   onKeyDown={(event) => {
+                    if (!componentIsCustomizable || !isSigned) {
+                      return;
+                    }
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       setPendingId(identity.id === pendingId ? "" : identity.id);
@@ -163,8 +315,14 @@ export function ManagedIdentityPickerDialog({
                       type="checkbox"
                       aria-label={`Select ${identity.name}`}
                       checked={pendingId === identity.id}
+                      disabled={!componentIsCustomizable || !isSigned}
                       onClick={(event) => event.stopPropagation()}
-                      onChange={() => setPendingId(pendingId === identity.id ? "" : identity.id)}
+                      onChange={() => {
+                        if (!componentIsCustomizable || !isSigned) {
+                          return;
+                        }
+                        setPendingId(pendingId === identity.id ? "" : identity.id);
+                      }}
                     />
                   </TableCell>
                   <TableCell className={styles.nameColumn}>
@@ -200,14 +358,28 @@ export function ManagedIdentityPickerDialog({
           )}
         </div>
         <div className={styles.footer}>
-          <Button appearance="subtle" icon={<Add24Regular />} onClick={onCreateNew} disabled={isSaving}>
-            New managed identity
-          </Button>
+          <div className={styles.pagination}>
+            <Text className={styles.muted}>Page {currentPage} of {pageCount}</Text>
+            <Button
+              appearance="subtle"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              appearance="subtle"
+              onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))}
+              disabled={currentPage === pageCount}
+            >
+              Next
+            </Button>
+          </div>
           <div className={styles.footerActions}>
             <Button appearance="secondary" onClick={onClose} disabled={isSaving}>Cancel</Button>
             <Button
               appearance="primary"
-              disabled={!componentIsCustomizable || !hasChanged || isSaving}
+              disabled={!componentIsCustomizable || !isSigned || !hasChanged || isSaving}
               onClick={() => onApply(pendingId || null)}
             >
               {pendingIdentity
@@ -215,6 +387,14 @@ export function ManagedIdentityPickerDialog({
                 : `Remove association from ${componentType}`}
             </Button>
           </div>
+          <Button
+            appearance="subtle"
+            icon={<Add24Regular />}
+            onClick={onCreateNew}
+            disabled={!componentIsCustomizable || !isSigned || isSaving}
+          >
+            New managed identity
+          </Button>
         </div>
       </section>
     </div>

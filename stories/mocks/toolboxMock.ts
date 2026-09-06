@@ -69,9 +69,12 @@ export function createToolboxAPIMock(
     await navigator.clipboard?.writeText(text).catch(() => undefined);
   });
   api.utils.showNotification.resolves();
-  // Storybook has no external browser, so record the URL instead of navigating away.
   api.utils.openInConnectionBrowser.callsFake(async (url) => {
-    console.log(`openInConnectionBrowser: ${url}`);
+    const target = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!target) {
+      throw new Error('Unable to open the maker portal in a new browser window.');
+    }
+    return undefined;
   });
 
   api.fileSystem.selectPath.callsFake(async (selectionOptions) => {

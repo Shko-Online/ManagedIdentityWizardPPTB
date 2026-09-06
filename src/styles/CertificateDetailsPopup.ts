@@ -34,6 +34,7 @@ const useCertificateDetailsStyles = makeStyles({
     flexDirection: "column",
     backgroundColor: tokens.colorNeutralBackground1,
     border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: tokens.borderRadiusMedium,
     boxShadow: tokens.shadow64,
   },
   header: {

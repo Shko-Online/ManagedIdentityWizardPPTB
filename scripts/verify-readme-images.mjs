@@ -1,6 +1,7 @@
 import spawn from 'cross-spawn';
 import { createInterface } from 'node:readline/promises';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { chromium } from 'playwright';
@@ -28,6 +29,8 @@ const screenshotDefinitions = [
   { file: '11.managed-identity-settings-popup.png', capture: settingsDialog },
   { file: '12.view-certificate-details-button.png', capture: certificateAction },
   { file: '13.certificate-details.png', capture: certificateDialog },
+  { file: '14.managed-identity-list.png', capture: managedIdentityList },
+  { file: '15.managed-identity-details.png', capture: managedIdentityDetails },
 ];
 
 async function loadApp(browser) {
@@ -114,6 +117,19 @@ async function certificateDialog(page, target) {
   await page.getByRole('dialog', { name: 'Certificate details' }).screenshot({ path: target });
 }
 
+async function managedIdentityList(page, target) {
+  await refresh(page);
+  await page.getByRole('tab', { name: /^Managed identities/ }).click();
+  await page.getByRole('table', { name: 'Managed identities' }).screenshot({ path: target });
+}
+
+async function managedIdentityDetails(page, target) {
+  await refresh(page);
+  await page.getByRole('tab', { name: /^Managed identities/ }).click();
+  await page.getByRole('button', { name: /View details for /i }).first().click();
+  await page.getByRole('dialog', { name: 'Managed identity details' }).screenshot({ path: target });
+}
+
 async function exerciseNativeFilePicker(browser) {
   const page = await loadApp(browser);
   const fileChooser = page.waitForEvent('filechooser');
@@ -185,6 +201,12 @@ async function main() {
       await page.close();
 
       const expectedPath = path.join(docsDirectory, definition.file);
+      if (!existsSync(expectedPath)) {
+        await cp(actualPath, expectedPath);
+        console.log(`Created new screenshot: ${definition.file}`);
+        continue;
+      }
+
       const comparison = comparePng(await readFile(expectedPath), await readFile(actualPath));
       if (comparison.changed) {
         changed.push(definition.file);

@@ -4,7 +4,6 @@ import {
   CheckmarkCircle24Regular,
   DocumentSearch24Regular,
   Info24Regular,
-  PersonKey24Regular,
   Save24Regular,
 } from "@fluentui/react-icons";
 import {
@@ -47,7 +46,6 @@ type PluginAssemblyTableProps = {
   onHoverInspect: (id: string | null) => void;
   onInspect: (assemblyRecord: PluginAssemblyRecord) => void;
   onExport: (assemblyRecord: PluginAssemblyRecord) => void;
-  onManageIdentity: (assemblyRecord: PluginAssemblyRecord) => void;
   onViewDetails: (assemblyRecord: PluginAssemblyRecord) => void;
   onSort: (sortKey: AssemblySortKey) => void;
 };
@@ -64,7 +62,6 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
   onHoverInspect,
   onInspect,
   onExport,
-  onManageIdentity,
   onViewDetails,
   onSort,
 }) => {
@@ -130,10 +127,15 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
               </TableCell>
               <TableCell className={styles.assemblyActionColumn}>
                 <div className={styles.actionButtons}>
-                  <Button appearance="subtle" icon={<Info24Regular />} aria-label={`View ${assemblyRecord.name} details`} title={`View ${assemblyRecord.name} details`} onClick={() => onViewDetails(assemblyRecord)} />
+                  <Button
+                    appearance="subtle"
+                    icon={<Info24Regular />}
+                    aria-label={`View details for ${assemblyRecord.name}`}
+                    title={`View details for ${assemblyRecord.name}`}
+                    onClick={() => onViewDetails(assemblyRecord)}
+                  />
                   <Button appearance="subtle" icon={inspectedComponentId === assemblyRecord.id && hasInspection && hoveredInspectId !== assemblyRecord.id ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} /> : <DocumentSearch24Regular />} aria-label={inspectedComponentId === assemblyRecord.id && hasInspection ? `Inspect ${assemblyRecord.name} again` : `Inspect ${assemblyRecord.name}`} title={inspectedComponentId === assemblyRecord.id && hasInspection ? "Inspect again" : `Inspect ${assemblyRecord.name}`} onMouseEnter={() => onHoverInspect(assemblyRecord.id)} onMouseLeave={() => onHoverInspect(null)} onClick={() => onInspect(assemblyRecord)} disabled={isInspecting || isExporting} />
                   <Button appearance="subtle" icon={<Save24Regular />} aria-label={`Export ${assemblyRecord.name}`} title={`Export ${assemblyRecord.name}`} onClick={() => onExport(assemblyRecord)} disabled={isInspecting || isExporting} />
-                  <Button appearance="subtle" icon={<PersonKey24Regular />} aria-label={`Manage the managed identity of ${assemblyRecord.name}`} title={`Manage the managed identity of ${assemblyRecord.name}`} onClick={() => onManageIdentity(assemblyRecord)} disabled={isInspecting || isExporting} />
                 </div>
               </TableCell>
             </TableRow>

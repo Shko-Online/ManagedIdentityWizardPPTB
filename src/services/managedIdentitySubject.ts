@@ -146,11 +146,13 @@ export async function sha256Hex(input: string | Uint8Array): Promise<string> {
 
 export async function buildManagedIdentitySubject(
   input: ManagedIdentitySubjectInput,
+  version: number | null | undefined = 2,
 ): Promise<ManagedIdentitySubjectResult> {
   if (!input.environmentId.trim()) {
     throw new Error("Environment ID is required.");
   }
 
+  const effectiveVersion = version === 0 ? 2 : (version ?? 2);
   const encodedTenantId = encodeTenantId(input.tenantId);
   const configuration = cloudConfigurations[input.cloud];
   const prefix = `${configuration.subjectPrefix}/t/${encodedTenantId}/a/qzXoWDkuqUa3l6zM5mM0Rw/n/plugin/e/${input.environmentId.trim()}`;
@@ -166,6 +168,13 @@ export async function buildManagedIdentitySubject(
 
   if (!input.certificate.issuerDistinguishedName || !input.certificate.subjectDistinguishedName) {
     throw new Error("Issuer and subject distinguished names are required.");
+  }
+
+  if (effectiveVersion === 1) {
+    return {
+      encodedTenantId,
+      subjectIdentifier: `${prefix}/i/${input.certificate.issuerDistinguishedName}/s/${input.certificate.subjectDistinguishedName}`,
+    };
   }
 
   const [issuerHash, subjectHash] = await Promise.all([

@@ -15,6 +15,7 @@
  */
 
 import type {
+  ManagedIdentityInput,
   ManagedIdentityRecord,
   PluginAssemblyRecord,
   PluginPackageRecord,
@@ -31,5 +32,7 @@ export interface ManagedIdentityDetailsPopupProps {
   /** Failure from the last copy attempt, shown inside the popup. */
   copyError: string | null;
   onCopy: (label: string, value: string) => void;
+  onUpdate?: (changes: Partial<ManagedIdentityInput>) => void;
+  onManageAssociation?: (component: PluginPackageRecord | PluginAssemblyRecord) => void;
   onClose: () => void;
 }

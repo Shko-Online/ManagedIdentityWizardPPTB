@@ -33,6 +33,7 @@ const solutions: SolutionRecord[] = [
     modifiedOn: '2026-08-30T12:00:00Z',
     pluginCount: 3,
     pluginPackageCount: 2,
+    managedIdentityCount: 1,
   },
   {
     id: 'contoso-identity',
@@ -44,6 +45,7 @@ const solutions: SolutionRecord[] = [
     modifiedOn: '2026-08-28T12:00:00Z',
     pluginCount: 1,
     pluginPackageCount: 1,
+    managedIdentityCount: 1,
   },
   {
     id: 'fabrikam-plugins',
@@ -55,6 +57,7 @@ const solutions: SolutionRecord[] = [
     modifiedOn: '2026-08-15T12:00:00Z',
     pluginCount: 4,
     pluginPackageCount: 3,
+    managedIdentityCount: 2,
   },
 ];
 
