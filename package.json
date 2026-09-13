@@ -46,7 +46,13 @@
     "storybook:scripts": "storybook",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "verify:readme-images": "node scripts/verify-readme-images.mjs"
+    "verify:readme-images": "node scripts/verify-readme-images.mjs",
+    "prepare": "node scripts/setup-git-hooks.mjs",
+    "readme:inspect": "node scripts/toggle-readme-images.mjs",
+    "readme:local": "node scripts/toggle-readme-images.mjs --local",
+    "readme:remote": "node scripts/toggle-readme-images.mjs --remote",
+    "readme:revert": "node scripts/toggle-readme-images.mjs --revert",
+    "readme:validate": "node scripts/toggle-readme-images.mjs --validate"
   },
   "dependencies": {
     "@fluentui/react-components": "9.74.7",
