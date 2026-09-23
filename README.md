@@ -147,6 +147,8 @@ The project includes Storybook scenarios with realistic mock Dataverse data and 
 
 This allows the UI states to be exercised without a live Dataverse connection.
 
+Try it now on chromatic [here](https://main--6a93f76508b0a59a5fc109cf.chromatic.com/).
+
 ## License
 
 Apache-2.0
