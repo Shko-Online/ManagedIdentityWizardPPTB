@@ -54,6 +54,7 @@ export function PluginComponentDetailsPopup({
   identityResult,
   issuer,
   missingIdentitySettingLabels,
+  manualIdentitySettingsWarning,
   environmentId,
   copyError,
   onInspect,
@@ -202,7 +203,11 @@ export function PluginComponentDetailsPopup({
                   {missingIdentitySettingLabels && (
                     <MessageBar intent="warning">
                       <MessageBarBody>
-                        {missingIdentitySettingLabels} {missingIdentitySettingLabels.includes(" and ") ? "are" : "is"} required to generate a managed identity subject identifier.
+                        {manualIdentitySettingsWarning ?? (
+                          <>
+                            {missingIdentitySettingLabels} {missingIdentitySettingLabels.includes(" and ") ? "are" : "is"} required to generate a managed identity subject identifier.
+                          </>
+                        )}
                         <Button
                           appearance="transparent"
                           icon={<Settings24Regular />}

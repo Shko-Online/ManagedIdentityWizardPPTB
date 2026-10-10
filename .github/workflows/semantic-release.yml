@@ -29,9 +29,6 @@ jobs:
         with:
           node-version: "lts/*"
 
-      - name: Setup NPM v11
-        run: npm install -g npm@^11
-
       - name: Install dependencies
         run: npm ci
 
@@ -46,9 +43,6 @@ jobs:
 
       - name: Validate
         run: npm run validate
-
-      - name: Shrinkwrap
-        run: npm shrinkwrap
 
       - name: Release
         env:

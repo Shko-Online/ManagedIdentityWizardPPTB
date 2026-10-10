@@ -99,6 +99,7 @@ import { PluginPackageTable } from "./PluginPackageTable";
 import { SolutionPickerDialog } from "./SolutionPickerDialog";
 import ToolboxAPIContext from "../context/ToolboxAPIContext";
 import { formatGuidInput } from "../utils/guid";
+import { getManualIdentitySettingsWarning } from "../utils/managedIdentitySettings";
 import { inspectNugetSignature } from "../services/nugetSignatureInspector";
 import { inspectPluginAssemblySignature } from "../services/pluginAssemblySignatureInspector";
 import useStyles from "../styles/PluginPackageInspector";
@@ -256,8 +257,13 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   const dataverseAPI = useContext(DataverseAPIContext);
   const toolboxAPI = useContext(ToolboxAPIContext);
   const missingIdentitySettings = !tenantId.trim() || !environmentId.trim();
+  const manualIdentitySettingsWarning = getManualIdentitySettingsWarning({
+    connection,
+    tenantId,
+    environmentId,
+  });
   const missingIdentitySettingLabels = [
-    !tenantId.trim() && "Tenant ID",
+    !tenantId.trim() && (connection ? "Tenant ID" : "Tenant ID (manual entry)"),
     !environmentId.trim() && "Environment ID",
   ]
     .filter(Boolean)
@@ -1231,8 +1237,9 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
             <div className={styles.emptyState}>
               <Info24Regular />
               <Text className={styles.muted}>
-                Refresh to load plug-in packages and assemblies from the connected
-                environment.
+                {connection
+                  ? "Refresh to load plug-in packages and assemblies from the connected environment."
+                  : "This tool is currently offline. Connect to a Dataverse environment first, then refresh to load plug-in packages and assemblies."}
               </Text>
             </div>
           )}
@@ -1410,6 +1417,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                   inputMode="text"
                   spellCheck={false}
                 />
+                {!connection && !tenantId.trim() && (
+                  <Text className={styles.muted}>
+                    No active Dataverse connection is available. Enter the tenant ID manually.
+                  </Text>
+                )}
               </div>
               <div className={styles.inputGroup}>
                 <Label htmlFor="environment-id">Environment ID</Label>
@@ -1421,6 +1433,11 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
                   inputMode="text"
                   spellCheck={false}
                 />
+                {!connection && !environmentId.trim() && (
+                  <Text className={styles.muted}>
+                    No active Dataverse connection is available. Enter the environment ID manually.
+                  </Text>
+                )}
               </div>
               <div className={styles.inputGroup}>
                 <Label htmlFor="cloud-environment">Cloud</Label>
@@ -1459,6 +1476,7 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
           missingIdentitySettingLabels={
             missingIdentitySettings ? missingIdentitySettingLabels : ""
           }
+          manualIdentitySettingsWarning={manualIdentitySettingsWarning}
           environmentId={environmentId}
           copyError={detailsError}
           onInspect={

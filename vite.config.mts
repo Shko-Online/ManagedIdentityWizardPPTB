@@ -79,7 +79,7 @@ export default defineConfig(configEnv => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      sourcemap: configEnv.mode === 'development',
+      sourcemap: true,
       // PPTB requires one IIFE bundle, including the ZIP inspection dependencies.
       chunkSizeWarningLimit: 1_600,
       rolldownOptions: {

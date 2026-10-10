@@ -45,6 +45,8 @@ export interface PluginComponentDetailsPopupProps {
   issuer: string;
   /** Empty when the tenant and environment are both known. */
   missingIdentitySettingLabels: string;
+  /** Shown when the tool is running without an active Dataverse connection and values must be supplied by hand. */
+  manualIdentitySettingsWarning?: string;
   environmentId: string;
   copyError: string | null;
   /** `null` for a file inspected from disk, which cannot be re-read from Dataverse. */

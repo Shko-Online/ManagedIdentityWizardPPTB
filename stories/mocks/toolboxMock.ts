@@ -38,10 +38,10 @@ function selectLocalFile(): Promise<File | null> {
   });
 }
 
-function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+function readFileAsArrayBuffer(file: File): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(reader.result as ArrayBuffer), { once: true });
+    reader.addEventListener('load', () => resolve(reader.result as unknown as Buffer<ArrayBuffer>), { once: true });
     reader.addEventListener('error', () => reject(reader.error), { once: true });
     reader.addEventListener(
       'abort',
@@ -58,7 +58,7 @@ export function createToolboxAPIMock(
 ): ToolboxAPIMock {
   const api = new ToolboxAPIMock();
   let selectedFile: File | null = null;
-  let selectedFileBytes: ArrayBuffer | null = null;
+  let selectedFileBytes: Buffer<ArrayBuffer> | null = null;
 
   api.connections.getActiveConnection.resolves(connection);
   api.connections.getSecondaryConnection.resolves(null);
@@ -88,7 +88,7 @@ export function createToolboxAPIMock(
         throw new Error(`Unable to load local fixture: ${mockOptions.localFileName}`);
       }
 
-      selectedFileBytes = await response.arrayBuffer();
+      selectedFileBytes = await response.arrayBuffer() as unknown as Buffer<ArrayBuffer>;
       return mockOptions.localFileName;
     }
 
