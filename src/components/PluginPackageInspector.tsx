@@ -75,7 +75,7 @@ import {
   setComponentManagedIdentity,
   updateManagedIdentity,
 } from "../services/pluginPackageService";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Buffer } from "buffer";
 import { CertificateDetailsPopup } from "./CertificateDetailsPopup";
 import { ConnectionContext } from "../context/ConnectionContext";
@@ -187,12 +187,14 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
   onInspectionRequested,
 }) => {
   const styles = useStyles();
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const { menuRoot: menuMountNode } = useContext(MenuRootContext);
   const [packages, setPackages] = useState<PluginPackageRecord[]>([]);
   const [assemblies, setAssemblies] = useState<PluginAssemblyRecord[]>([]);
   const [identities, setIdentities] = useState<ManagedIdentityRecord[]>([]);
   const [activeTab, setActiveTab] = useState<PluginComponentTab>("packages");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [nameFilter, setNameFilter] = useState("");
   const [packageSortKey, setPackageSortKey] =
     useState<PackageSortKey>("createdOn");
@@ -1064,17 +1066,45 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
     });
     return identitySortDescending ? -comparison : comparison;
   });
+  useEffect(() => {
+    const container = contentRef.current;
+    if (!container) {
+      return;
+    }
+
+    const updatePageSize = () => {
+      const availableHeight = container.getBoundingClientRect().height;
+      const rowHeight = 40;
+      const reservedHeight = 260;
+      const nextPageSize = Math.max(
+        4,
+        Math.floor(Math.max(availableHeight - reservedHeight, 0) / rowHeight) || 4,
+      );
+      setPageSize((previousPageSize) =>
+        previousPageSize === nextPageSize ? previousPageSize : nextPageSize,
+      );
+    };
+
+    updatePageSize();
+    const resizeObserver = new ResizeObserver(updatePageSize);
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [activeTab, nameFilter, selectedSolutionId, packages.length, assemblies.length, identities.length]);
+
   const activeRecordCount =
     activeTab === "packages"
       ? sortedPackages.length
       : activeTab === "assemblies"
         ? sortedAssemblies.length
         : sortedIdentities.length;
-  const pageCount = Math.max(1, Math.ceil(activeRecordCount / 10));
-  const pageStart = (currentPage - 1) * 10;
-  const pagedPackages = sortedPackages.slice(pageStart, pageStart + 10);
-  const pagedAssemblies = sortedAssemblies.slice(pageStart, pageStart + 10);
-  const pagedIdentities = sortedIdentities.slice(pageStart, pageStart + 10);
+  const pageCount = Math.max(1, Math.ceil(activeRecordCount / pageSize));
+  const pageStart = (currentPage - 1) * pageSize;
+  const pagedPackages = sortedPackages.slice(pageStart, pageStart + pageSize);
+  const pagedAssemblies = sortedAssemblies.slice(pageStart, pageStart + pageSize);
+  const pagedIdentities = sortedIdentities.slice(pageStart, pageStart + pageSize);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1101,7 +1131,7 @@ export const PluginPackageInspector: React.FC<PluginPackageInspectorProps> = ({
           </div>
         }
       />
-      <div className={styles.content}>
+      <div className={styles.content} ref={contentRef}>
         <div className={styles.toolbar}>
           <div className={styles.commandGroup}>
             <Button

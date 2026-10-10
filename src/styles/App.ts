@@ -127,6 +127,18 @@ const useStyles = makeStyles({
         display: 'flex',
         flexDirection: 'column',
         gap: tokens.spacingVerticalM,
+        minHeight: 0,
+    },
+    inspectorPanel: {
+        flex: '1 1 auto',
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+    },
+    eventLogPanel: {
+        marginTop: 'auto',
+        flex: '0 0 auto',
+        minHeight: 0,
     },
     statsRow: {
         display: 'flex',
@@ -238,22 +250,6 @@ const useStyles = makeStyles({
         backgroundColor: tokens.colorNeutralBackground1,
         borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
         padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalM}`,
-    },
-    topRowContainer: {
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-        gap: tokens.spacingVerticalL,
-        alignItems: 'stretch',
-    },
-    connectionStatus: {
-        minHeight: '0',
-        minWidth: '0',
-        height: '100%',
-    },
-    shkoOnlineAd: {
-        minHeight: '0',
-        minWidth: '0',
-        height: '100%',
     },
 });
 

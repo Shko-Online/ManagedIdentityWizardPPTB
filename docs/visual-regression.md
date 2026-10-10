@@ -4,7 +4,7 @@
 
 The verification set currently covers the main documentation flow plus the managed identity inventory and details views:
 
-- core app shell and solution filtering
+- core app shell, connection details, and solution filtering
 - plugin package and plugin assembly lists
 - package inspection and certificate review
 - managed identity settings dialog

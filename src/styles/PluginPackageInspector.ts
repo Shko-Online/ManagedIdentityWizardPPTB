@@ -19,8 +19,14 @@ import { makeStyles, tokens } from "@fluentui/react-components";
 const useStyles = makeStyles({
   card: {
     width: "100%",
+    flex: "1 1 auto",
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
   },
   content: {
+    flex: "1 1 auto",
+    minHeight: 0,
     padding: tokens.spacingVerticalM,
     display: "flex",
     flexDirection: "column",
@@ -84,7 +90,11 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalS,
   },
   tableContainer: {
+    flex: "1 1 auto",
+    minHeight: 0,
     overflowX: "auto",
+    overflowY: "auto",
+    scrollbarGutter: "stable",
   },
   sectionTitle: {
     display: "block",
@@ -94,6 +104,15 @@ const useStyles = makeStyles({
     tableLayout: "fixed",
     width: "100%",
     minWidth: "1540px",
+    minHeight: 0,
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    "& thead th": {
+      position: "sticky",
+      top: 0,
+      zIndex: 1,
+      backgroundColor: tokens.colorNeutralBackground1,
+    },
   },
   tableHeader: {
     "& th": {
@@ -215,6 +234,15 @@ const useStyles = makeStyles({
     tableLayout: "fixed",
     width: "100%",
     minWidth: "1880px",
+    minHeight: 0,
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    "& thead th": {
+      position: "sticky",
+      top: 0,
+      zIndex: 1,
+      backgroundColor: tokens.colorNeutralBackground1,
+    },
   },
   identityNameColumn: {
     width: "240px",

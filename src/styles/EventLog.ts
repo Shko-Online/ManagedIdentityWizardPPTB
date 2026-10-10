@@ -28,9 +28,23 @@ const useEventLogStyles = makeStyles({
     paddingLeft: tokens.spacingHorizontalM,
     paddingRight: tokens.spacingHorizontalM,
     paddingBottom: tokens.spacingVerticalM,
+    maxHeight: "220px",
+    overflowY: "auto",
+    overflowX: "auto",
+    scrollbarGutter: "stable",
   },
   table: {
     minHeight: "0",
+    width: "100%",
+    tableLayout: "fixed",
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    '& thead th': {
+      position: 'sticky',
+      top: 0,
+      zIndex: 1,
+      backgroundColor: tokens.colorNeutralBackground1,
+    },
   },
   emptyState: {
     padding: tokens.spacingVerticalXXL,

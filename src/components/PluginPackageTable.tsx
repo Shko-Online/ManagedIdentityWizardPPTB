@@ -15,29 +15,19 @@
  */
 
 import {
-  ArrowSortDown24Regular,
-  ArrowSortUp24Regular,
   CheckmarkCircle24Regular,
   DocumentSearch24Regular,
   Info24Regular,
   Save24Regular,
 } from "@fluentui/react-icons";
-import {
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
-} from "@fluentui/react-components";
+import { Badge, Button } from "@fluentui/react-components";
 import {
   formatSolutionDate,
   formatSolutionDateTime,
   getManagedIdentityTooltip,
 } from "../services/pluginPackageInspector";
 import EllipsisText from "./EllipsisText";
+import SortableDataTable, { type SortableColumn } from "./SortableDataTable";
 import { type PluginPackageRecord } from "../services/pluginPackageService";
 import useStyles from "../styles/PluginPackageInspector";
 
@@ -84,86 +74,161 @@ export const PluginPackageTable: React.FC<PluginPackageTableProps> = ({
   onSort,
 }) => {
   const styles = useStyles();
-  const sortIcon = (columnSortKey: PackageSortKey) =>
-    sortKey === columnSortKey
-      ? sortDescending
-        ? <ArrowSortDown24Regular />
-        : <ArrowSortUp24Regular />
-      : undefined;
-  const sortableHeader = (label: string, columnSortKey: PackageSortKey) => (
-    <Button
-      className={styles.sortButton}
-      appearance="subtle"
-      onClick={() => onSort(columnSortKey)}
-    >
-      <span className={styles.sortIconSlot} aria-hidden="true" />
-      {label}
-      <span className={styles.sortIconSlot}>{sortIcon(columnSortKey)}</span>
-    </Button>
-  );
+
+  const columns: SortableColumn<PluginPackageRecord, PackageSortKey>[] = [
+    {
+      key: "name",
+      label: "Name",
+      className: styles.nameColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <EllipsisText className={styles.ellipsis} value={packageRecord.name} />
+      ),
+    },
+    {
+      key: "uniqueName",
+      label: "Unique name",
+      className: styles.uniqueNameColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <EllipsisText className={styles.ellipsis} value={packageRecord.uniqueName || "-"} />
+      ),
+    },
+    {
+      key: "version",
+      label: "Version",
+      className: styles.versionColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <EllipsisText className={styles.ellipsis} value={packageRecord.version || "-"} />
+      ),
+    },
+    {
+      key: "packageName",
+      label: "Package file",
+      className: styles.packageFileColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <EllipsisText className={styles.ellipsis} value={packageRecord.packageName ?? "No package file"} />
+      ),
+    },
+    {
+      key: "createdOn",
+      label: "Created",
+      className: styles.createdColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <span title={formatSolutionDateTime(packageRecord.createdOn)}>{formatSolutionDate(packageRecord.createdOn)}</span>
+      ),
+    },
+    {
+      key: "modifiedOn",
+      label: "Modified",
+      className: styles.modifiedColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <span title={formatSolutionDateTime(packageRecord.modifiedOn)}>{formatSolutionDate(packageRecord.modifiedOn)}</span>
+      ),
+    },
+    {
+      key: "isManaged",
+      label: "Type",
+      className: styles.managedColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <Badge appearance="tint" color={packageRecord.isManaged ? "brand" : "informative"} title={packageRecord.isManaged ? "Managed" : "Unmanaged"}>{packageRecord.isManaged ? "M" : "U"}</Badge>
+      ),
+    },
+    {
+      key: "isCustomizable",
+      label: "Customizable",
+      className: styles.customizableColumn,
+      sortable: true,
+      renderCell: (packageRecord) => (
+        <Badge appearance="tint" color={packageRecord.isCustomizable ? "success" : "danger"} title={packageRecord.isCustomizable ? "Customizations are allowed" : "This package does not allow customizations"}>{packageRecord.isCustomizable ? "Yes" : "No"}</Badge>
+      ),
+    },
+    {
+      key: "managedIdentity",
+      label: "Managed identity",
+      className: styles.identityColumn,
+      sortable: true,
+      renderCell: (packageRecord) => {
+        if (packageRecord.managedIdentity) {
+          return (
+            <EllipsisText
+              className={styles.ellipsis}
+              value={packageRecord.managedIdentity.name}
+              title={getManagedIdentityTooltip(packageRecord.managedIdentity)}
+            />
+          );
+        }
+
+        if (packageRecord.managedIdentityId) {
+          return (
+            <Badge appearance="tint" color="warning" title="The related managed identity record could not be read.">Restricted</Badge>
+          );
+        }
+
+        return <span className={styles.muted}>-</span>;
+      },
+    },
+  ];
 
   return (
-    <div className={styles.tableContainer}>
-      <Table className={styles.table} size="small" aria-label="Plugin packages">
-        <TableHeader className={styles.tableHeader}>
-          <TableRow>
-            <TableHeaderCell className={styles.nameColumn}>{sortableHeader("Name", "name")}</TableHeaderCell>
-            <TableHeaderCell className={styles.uniqueNameColumn}>{sortableHeader("Unique name", "uniqueName")}</TableHeaderCell>
-            <TableHeaderCell className={styles.versionColumn}>{sortableHeader("Version", "version")}</TableHeaderCell>
-            <TableHeaderCell className={styles.packageFileColumn}>{sortableHeader("Package file", "packageName")}</TableHeaderCell>
-            <TableHeaderCell className={styles.createdColumn}>{sortableHeader("Created", "createdOn")}</TableHeaderCell>
-            <TableHeaderCell className={styles.modifiedColumn}>{sortableHeader("Modified", "modifiedOn")}</TableHeaderCell>
-            <TableHeaderCell className={styles.managedColumn}>{sortableHeader("Type", "isManaged")}</TableHeaderCell>
-            <TableHeaderCell className={styles.customizableColumn}>{sortableHeader("Customizable", "isCustomizable")}</TableHeaderCell>
-            <TableHeaderCell className={styles.identityColumn}>{sortableHeader("Managed identity", "managedIdentity")}</TableHeaderCell>
-            <TableHeaderCell className={styles.actionColumn}>Actions</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {packages.map((packageRecord) => (
-            <TableRow key={packageRecord.id} className={inspectedComponentId === packageRecord.id && hasInspection ? styles.inspectedRow : undefined}>
-              <TableCell className={styles.nameColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.name} /></TableCell>
-              <TableCell className={styles.uniqueNameColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.uniqueName || "-"} /></TableCell>
-              <TableCell className={styles.versionColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.version || "-"} /></TableCell>
-              <TableCell className={styles.packageFileColumn}><EllipsisText className={styles.ellipsis} value={packageRecord.packageName ?? "No package file"} /></TableCell>
-              <TableCell className={styles.createdColumn} title={formatSolutionDateTime(packageRecord.createdOn)}>{formatSolutionDate(packageRecord.createdOn)}</TableCell>
-              <TableCell className={styles.modifiedColumn} title={formatSolutionDateTime(packageRecord.modifiedOn)}>{formatSolutionDate(packageRecord.modifiedOn)}</TableCell>
-              <TableCell className={styles.managedColumn}>
-                <Badge appearance="tint" color={packageRecord.isManaged ? "brand" : "informative"} title={packageRecord.isManaged ? "Managed" : "Unmanaged"}>{packageRecord.isManaged ? "M" : "U"}</Badge>
-              </TableCell>
-              <TableCell className={styles.customizableColumn}>
-                <Badge appearance="tint" color={packageRecord.isCustomizable ? "success" : "danger"} title={packageRecord.isCustomizable ? "Customizations are allowed" : "This package does not allow customizations"}>{packageRecord.isCustomizable ? "Yes" : "No"}</Badge>
-              </TableCell>
-              <TableCell className={styles.identityColumn}>
-                {packageRecord.managedIdentity ? (
-                  <EllipsisText
-                    className={styles.ellipsis}
-                    value={packageRecord.managedIdentity.name}
-                    title={getManagedIdentityTooltip(packageRecord.managedIdentity)}
-                  />
-                ) : packageRecord.managedIdentityId ? (
-                  <Badge appearance="tint" color="warning" title="The related managed identity record could not be read.">Restricted</Badge>
-                ) : (
-                  <span className={styles.muted}>-</span>
-                )}
-              </TableCell>
-              <TableCell className={styles.actionColumn}>
-                <div className={styles.actionButtons}>
-                  <Button
-                    appearance="subtle"
-                    icon={<Info24Regular />}
-                    aria-label={`View details for ${packageRecord.name}`}
-                    title={`View details for ${packageRecord.name}`}
-                    onClick={() => onViewDetails(packageRecord)}
-                  />
-                  <Button appearance="subtle" icon={inspectedComponentId === packageRecord.id && hasInspection && hoveredInspectId !== packageRecord.id ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} /> : <DocumentSearch24Regular />} aria-label={inspectedComponentId === packageRecord.id && hasInspection ? `Inspect ${packageRecord.name} again` : `Inspect ${packageRecord.name}`} title={inspectedComponentId === packageRecord.id && hasInspection ? "Inspect again" : `Inspect ${packageRecord.name}`} onMouseEnter={() => onHoverInspect(packageRecord.id)} onMouseLeave={() => onHoverInspect(null)} onClick={() => onInspect(packageRecord)} disabled={isInspecting || isExporting} />
-                  <Button appearance="subtle" icon={<Save24Regular />} aria-label={`Export ${packageRecord.name}`} title={`Export ${packageRecord.name}`} onClick={() => onExport(packageRecord)} disabled={isInspecting || isExporting} />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <SortableDataTable
+      rows={packages}
+      columns={columns}
+      ariaLabel="Plugin packages"
+      getRowKey={(packageRecord) => packageRecord.id}
+      tableClassName={styles.table}
+      tableContainerClassName={styles.tableContainer}
+      tableHeaderClassName={styles.tableHeader}
+      rowClassName={(packageRecord) =>
+        inspectedComponentId === packageRecord.id && hasInspection ? styles.inspectedRow : undefined}
+      sortKey={sortKey}
+      sortDescending={sortDescending}
+      onSort={onSort}
+      sortButtonClassName={styles.sortButton}
+      sortIconSlotClassName={styles.sortIconSlot}
+      actionsColumnClassName={styles.actionColumn}
+      renderActions={(packageRecord) => (
+        <div className={styles.actionButtons}>
+          <Button
+            appearance="subtle"
+            icon={<Info24Regular />}
+            aria-label={`View details for ${packageRecord.name}`}
+            title={`View details for ${packageRecord.name}`}
+            onClick={() => onViewDetails(packageRecord)}
+          />
+          <Button
+            appearance="subtle"
+            icon={
+              inspectedComponentId === packageRecord.id && hasInspection && hoveredInspectId !== packageRecord.id
+                ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} />
+                : <DocumentSearch24Regular />
+            }
+            aria-label={
+              inspectedComponentId === packageRecord.id && hasInspection
+                ? `Inspect ${packageRecord.name} again`
+                : `Inspect ${packageRecord.name}`
+            }
+            title={inspectedComponentId === packageRecord.id && hasInspection ? "Inspect again" : `Inspect ${packageRecord.name}`}
+            onMouseEnter={() => onHoverInspect(packageRecord.id)}
+            onMouseLeave={() => onHoverInspect(null)}
+            onClick={() => onInspect(packageRecord)}
+            disabled={isInspecting || isExporting}
+          />
+          <Button
+            appearance="subtle"
+            icon={<Save24Regular />}
+            aria-label={`Export ${packageRecord.name}`}
+            title={`Export ${packageRecord.name}`}
+            onClick={() => onExport(packageRecord)}
+            disabled={isInspecting || isExporting}
+          />
+        </div>
+      )}
+    />
   );
 };

@@ -16,13 +16,11 @@
 
 import { FluentProvider, Title3, webDarkTheme, webLightTheme } from '@fluentui/react-components';
 import { useContext, useEffect, useState } from 'react';
-import { ConnectionStatus } from './components/ConnectionStatus';
 import EllipsisText from './components/EllipsisText';
 import { EventLog } from './components/EventLog';
 import { LogsContext } from './context/LogsContext';
 import MenuRootContext from './context/MenuRootContext';
 import { PluginPackageInspector } from './components/PluginPackageInspector';
-import { ShkoOnlineAd } from './components/ShkoOnlineAd';
 import ToolboxAPIContext from './context/ToolboxAPIContext';
 import useStyles from './styles/App';
 
@@ -91,21 +89,11 @@ function App() {
                 </div>
 
                 <div className={styles.content}>
-                    <div className={styles.topRowContainer}>
-                        <div className={styles.connectionStatus}>
-                            <ConnectionStatus />
-                        </div>
-
-                        <div className={styles.shkoOnlineAd}>
-                            <ShkoOnlineAd />
-                        </div>
-                    </div>
-
-                    <div>
+                    <div className={styles.inspectorPanel}>
                         <PluginPackageInspector />
                     </div>
 
-                    <div>
+                    <div className={styles.eventLogPanel}>
                         <EventLog />
                     </div>
                 </div>

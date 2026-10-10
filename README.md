@@ -27,6 +27,7 @@ The wizard helps you:
 - Review plugin packages and plugin assemblies in a Dataverse environment
 - Filter by solution, package, assembly, or managed identity state
 - Inspect signatures and certificate details for signed components
+- Review the active connection and a compact event log with a full-history popup when troubleshooting
 - Calculate managed identity subject identifiers from signed plugin content
 - Create, edit, and review managed identities
 - Assign or dissociate managed identities only when the component is signed and allows customizations
@@ -58,6 +59,10 @@ The main grid shows plugin packages and plugin assemblies in tabs with:
 ![Plugin Packages List](https://raw.githubusercontent.com/Shko-Online/ManagedIdentityWizardPPTB/refs/heads/main/docs/04.plugin-packages-list.png)
 
 ![Plugin Assemblies List](https://raw.githubusercontent.com/Shko-Online/ManagedIdentityWizardPPTB/refs/heads/main/docs/05.plugin-assemblies-list.png)
+
+### Connection details and diagnostics
+
+The main app shell keeps the active Dataverse connection and the recent operational history close at hand. Users can open the connection details popup to review the environment name, URL, and tenant metadata, and the event log keeps the latest activity visible while still allowing access to the full event history when needed.
 
 ### Signature inspection and certificate review
 
@@ -148,6 +153,10 @@ The project includes Storybook scenarios with realistic mock Dataverse data and 
 This allows the UI states to be exercised without a live Dataverse connection.
 
 Try it now on chromatic [here](https://main--6a93f76508b0a59a5fc109cf.chromatic.com/).
+
+## AI Assistance
+
+Parts of this tool were generated with GitHub Copilot and reviewed, tested, and maintained by the contributors listed in package.json. If you find anything wrong with our solution that our quality review process might have missed please feel free to inform us, we will promptly take action.
 
 ## License
 

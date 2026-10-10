@@ -38,11 +38,20 @@ const useStyles = makeStyles({
     overflowX: "auto",
     maxHeight: "220px",
     overflowY: "auto",
+    scrollbarGutter: "stable",
   },
   table: {
     tableLayout: "fixed",
     width: "100%",
     minWidth: "460px",
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    "& thead th": {
+      position: "sticky",
+      top: 0,
+      zIndex: 1,
+      backgroundColor: tokens.colorNeutralBackground1,
+    },
   },
   tableHeader: {
     "& th": {

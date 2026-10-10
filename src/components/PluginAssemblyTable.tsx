@@ -1,27 +1,17 @@
 import {
-  ArrowSortDown24Regular,
-  ArrowSortUp24Regular,
   CheckmarkCircle24Regular,
   DocumentSearch24Regular,
   Info24Regular,
   Save24Regular,
 } from "@fluentui/react-icons";
-import {
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
-} from "@fluentui/react-components";
+import { Badge, Button } from "@fluentui/react-components";
 import {
   formatSolutionDate,
   formatSolutionDateTime,
   getManagedIdentityTooltip,
 } from "../services/pluginPackageInspector";
 import EllipsisText from "./EllipsisText";
+import SortableDataTable, { type SortableColumn } from "./SortableDataTable";
 import { type PluginAssemblyRecord } from "../services/pluginPackageService";
 import useStyles from "../styles/PluginPackageInspector";
 
@@ -66,82 +56,143 @@ export const PluginAssemblyTable: React.FC<PluginAssemblyTableProps> = ({
   onSort,
 }) => {
   const styles = useStyles();
-  const sortIcon = (columnSortKey: AssemblySortKey) =>
-    sortKey === columnSortKey
-      ? sortDescending
-        ? <ArrowSortDown24Regular />
-        : <ArrowSortUp24Regular />
-      : undefined;
-  const sortableHeader = (label: string, columnSortKey: AssemblySortKey) => (
-    <Button
-      className={styles.sortButton}
-      appearance="subtle"
-      onClick={() => onSort(columnSortKey)}
-    >
-      <span className={styles.sortIconSlot} aria-hidden="true" />
-      {label}
-      <span className={styles.sortIconSlot}>{sortIcon(columnSortKey)}</span>
-    </Button>
-  );
+
+  const columns: SortableColumn<PluginAssemblyRecord, AssemblySortKey>[] = [
+    {
+      key: "name",
+      label: "Name",
+      className: styles.assemblyNameColumn,
+      sortable: true,
+      renderCell: (assemblyRecord) => (
+        <EllipsisText className={styles.ellipsis} value={assemblyRecord.name} />
+      ),
+    },
+    {
+      key: "version",
+      label: "Version",
+      className: styles.assemblyVersionColumn,
+      sortable: true,
+      renderCell: (assemblyRecord) => (
+        <EllipsisText className={styles.ellipsis} value={assemblyRecord.version || "-"} />
+      ),
+    },
+    {
+      key: "isManaged",
+      label: "Type",
+      className: styles.assemblyManagedColumn,
+      sortable: true,
+      renderCell: (assemblyRecord) => (
+        <Badge appearance="tint" color={assemblyRecord.isManaged ? "brand" : "informative"} title={assemblyRecord.isManaged ? "Managed" : "Unmanaged"}>{assemblyRecord.isManaged ? "M" : "U"}</Badge>
+      ),
+    },
+    {
+      key: "isCustomizable",
+      label: "Customizable",
+      className: styles.customizableColumn,
+      sortable: true,
+      renderCell: (assemblyRecord) => (
+        <Badge appearance="tint" color={assemblyRecord.isCustomizable ? "success" : "danger"} title={assemblyRecord.isCustomizable ? "Customizations are allowed" : "This assembly does not allow customizations"}>{assemblyRecord.isCustomizable ? "Yes" : "No"}</Badge>
+      ),
+    },
+    {
+      key: "createdOn",
+      label: "Created",
+      className: styles.assemblyCreatedColumn,
+      sortable: true,
+      renderCell: (assemblyRecord) => (
+        <span title={formatSolutionDateTime(assemblyRecord.createdOn)}>{formatSolutionDate(assemblyRecord.createdOn)}</span>
+      ),
+    },
+    {
+      key: "modifiedOn",
+      label: "Modified",
+      className: styles.assemblyModifiedColumn,
+      sortable: true,
+      renderCell: (assemblyRecord) => (
+        <span title={formatSolutionDateTime(assemblyRecord.modifiedOn)}>{formatSolutionDate(assemblyRecord.modifiedOn)}</span>
+      ),
+    },
+    {
+      key: "managedIdentity",
+      label: "Managed identity",
+      className: styles.assemblyIdentityColumn,
+      sortable: true,
+      renderCell: (assemblyRecord) => {
+        if (assemblyRecord.managedIdentity) {
+          return (
+            <EllipsisText
+              className={styles.ellipsis}
+              value={assemblyRecord.managedIdentity.name}
+              title={getManagedIdentityTooltip(assemblyRecord.managedIdentity)}
+            />
+          );
+        }
+
+        if (assemblyRecord.managedIdentityId) {
+          return (
+            <Badge appearance="tint" color="warning" title="The related managed identity record could not be read.">Restricted</Badge>
+          );
+        }
+
+        return <span className={styles.muted}>-</span>;
+      },
+    },
+  ];
 
   return (
-    <div className={styles.tableContainer}>
-      <Table className={styles.table} size="small" aria-label="Plugin assemblies">
-        <TableHeader className={styles.tableHeader}>
-          <TableRow>
-            <TableHeaderCell className={styles.assemblyNameColumn}>{sortableHeader("Name", "name")}</TableHeaderCell>
-            <TableHeaderCell className={styles.assemblyVersionColumn}>{sortableHeader("Version", "version")}</TableHeaderCell>
-            <TableHeaderCell className={styles.assemblyManagedColumn}>{sortableHeader("Type", "isManaged")}</TableHeaderCell>
-            <TableHeaderCell className={styles.customizableColumn}>{sortableHeader("Customizable", "isCustomizable")}</TableHeaderCell>
-            <TableHeaderCell className={styles.assemblyCreatedColumn}>{sortableHeader("Created", "createdOn")}</TableHeaderCell>
-            <TableHeaderCell className={styles.assemblyModifiedColumn}>{sortableHeader("Modified", "modifiedOn")}</TableHeaderCell>
-            <TableHeaderCell className={styles.assemblyIdentityColumn}>{sortableHeader("Managed identity", "managedIdentity")}</TableHeaderCell>
-            <TableHeaderCell className={styles.assemblyActionColumn}>Actions</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {assemblies.map((assemblyRecord) => (
-            <TableRow key={assemblyRecord.id} className={inspectedComponentId === assemblyRecord.id && hasInspection ? styles.inspectedRow : undefined}>
-              <TableCell className={styles.assemblyNameColumn}><EllipsisText className={styles.ellipsis} value={assemblyRecord.name} /></TableCell>
-              <TableCell className={styles.assemblyVersionColumn}><EllipsisText className={styles.ellipsis} value={assemblyRecord.version || "-"} /></TableCell>
-              <TableCell className={styles.assemblyManagedColumn}>
-                <Badge appearance="tint" color={assemblyRecord.isManaged ? "brand" : "informative"} title={assemblyRecord.isManaged ? "Managed" : "Unmanaged"}>{assemblyRecord.isManaged ? "M" : "U"}</Badge>
-              </TableCell>
-              <TableCell className={styles.customizableColumn}>
-                <Badge appearance="tint" color={assemblyRecord.isCustomizable ? "success" : "danger"} title={assemblyRecord.isCustomizable ? "Customizations are allowed" : "This assembly does not allow customizations"}>{assemblyRecord.isCustomizable ? "Yes" : "No"}</Badge>
-              </TableCell>
-              <TableCell className={styles.assemblyCreatedColumn} title={formatSolutionDateTime(assemblyRecord.createdOn)}>{formatSolutionDate(assemblyRecord.createdOn)}</TableCell>
-              <TableCell className={styles.assemblyModifiedColumn} title={formatSolutionDateTime(assemblyRecord.modifiedOn)}>{formatSolutionDate(assemblyRecord.modifiedOn)}</TableCell>
-              <TableCell className={styles.assemblyIdentityColumn}>
-                {assemblyRecord.managedIdentity ? (
-                  <EllipsisText
-                    className={styles.ellipsis}
-                    value={assemblyRecord.managedIdentity.name}
-                    title={getManagedIdentityTooltip(assemblyRecord.managedIdentity)}
-                  />
-                ) : assemblyRecord.managedIdentityId ? (
-                  <Badge appearance="tint" color="warning" title="The related managed identity record could not be read.">Restricted</Badge>
-                ) : (
-                  <span className={styles.muted}>-</span>
-                )}
-              </TableCell>
-              <TableCell className={styles.assemblyActionColumn}>
-                <div className={styles.actionButtons}>
-                  <Button
-                    appearance="subtle"
-                    icon={<Info24Regular />}
-                    aria-label={`View details for ${assemblyRecord.name}`}
-                    title={`View details for ${assemblyRecord.name}`}
-                    onClick={() => onViewDetails(assemblyRecord)}
-                  />
-                  <Button appearance="subtle" icon={inspectedComponentId === assemblyRecord.id && hasInspection && hoveredInspectId !== assemblyRecord.id ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} /> : <DocumentSearch24Regular />} aria-label={inspectedComponentId === assemblyRecord.id && hasInspection ? `Inspect ${assemblyRecord.name} again` : `Inspect ${assemblyRecord.name}`} title={inspectedComponentId === assemblyRecord.id && hasInspection ? "Inspect again" : `Inspect ${assemblyRecord.name}`} onMouseEnter={() => onHoverInspect(assemblyRecord.id)} onMouseLeave={() => onHoverInspect(null)} onClick={() => onInspect(assemblyRecord)} disabled={isInspecting || isExporting} />
-                  <Button appearance="subtle" icon={<Save24Regular />} aria-label={`Export ${assemblyRecord.name}`} title={`Export ${assemblyRecord.name}`} onClick={() => onExport(assemblyRecord)} disabled={isInspecting || isExporting} />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <SortableDataTable
+      rows={assemblies}
+      columns={columns}
+      ariaLabel="Plugin assemblies"
+      getRowKey={(assemblyRecord) => assemblyRecord.id}
+      tableClassName={styles.table}
+      tableContainerClassName={styles.tableContainer}
+      tableHeaderClassName={styles.tableHeader}
+      rowClassName={(assemblyRecord) =>
+        inspectedComponentId === assemblyRecord.id && hasInspection ? styles.inspectedRow : undefined}
+      sortKey={sortKey}
+      sortDescending={sortDescending}
+      onSort={onSort}
+      sortButtonClassName={styles.sortButton}
+      sortIconSlotClassName={styles.sortIconSlot}
+      actionsColumnClassName={styles.assemblyActionColumn}
+      renderActions={(assemblyRecord) => (
+        <div className={styles.actionButtons}>
+          <Button
+            appearance="subtle"
+            icon={<Info24Regular />}
+            aria-label={`View details for ${assemblyRecord.name}`}
+            title={`View details for ${assemblyRecord.name}`}
+            onClick={() => onViewDetails(assemblyRecord)}
+          />
+          <Button
+            appearance="subtle"
+            icon={
+              inspectedComponentId === assemblyRecord.id && hasInspection && hoveredInspectId !== assemblyRecord.id
+                ? <CheckmarkCircle24Regular className={styles.inspectedIndicator} />
+                : <DocumentSearch24Regular />
+            }
+            aria-label={
+              inspectedComponentId === assemblyRecord.id && hasInspection
+                ? `Inspect ${assemblyRecord.name} again`
+                : `Inspect ${assemblyRecord.name}`
+            }
+            title={inspectedComponentId === assemblyRecord.id && hasInspection ? "Inspect again" : `Inspect ${assemblyRecord.name}`}
+            onMouseEnter={() => onHoverInspect(assemblyRecord.id)}
+            onMouseLeave={() => onHoverInspect(null)}
+            onClick={() => onInspect(assemblyRecord)}
+            disabled={isInspecting || isExporting}
+          />
+          <Button
+            appearance="subtle"
+            icon={<Save24Regular />}
+            aria-label={`Export ${assemblyRecord.name}`}
+            title={`Export ${assemblyRecord.name}`}
+            onClick={() => onExport(assemblyRecord)}
+            disabled={isInspecting || isExporting}
+          />
+        </div>
+      )}
+    />
   );
 };

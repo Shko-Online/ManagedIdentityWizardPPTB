@@ -53,6 +53,8 @@ const useStyles = makeStyles({
   tableContainer: {
     overflow: "auto",
     padding: tokens.spacingVerticalM,
+    maxHeight: "320px",
+    scrollbarGutter: "stable",
   },
   footer: {
     display: "flex",
@@ -72,6 +74,14 @@ const useStyles = makeStyles({
     minWidth: "1194px",
     tableLayout: "fixed",
     width: "100%",
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    "& thead th": {
+      position: "sticky",
+      top: 0,
+      zIndex: 1,
+      backgroundColor: tokens.colorNeutralBackground1,
+    },
   },
   tableHeader: {
     borderBottom: `3px solid ${tokens.colorNeutralStroke1}`,
