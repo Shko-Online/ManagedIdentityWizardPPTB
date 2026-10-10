@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "intake-policy-review": {
+      "source": "PowerPlatformToolBox/pptb-agent-skills",
+      "sourceType": "github",
+      "skillPath": "intake-policy-review/SKILL.md",
+      "computedHash": "3d248209f86e5a94f8cb9d0ad681a3c3e69d1b3d75ad02256e74bb8c88d277cd"
+    },
+    "pptb-tool-dev": {
+      "source": "PowerPlatformToolBox/pptb-agent-skills",
+      "sourceType": "github",
+      "skillPath": "tool-dev/SKILL.md",
+      "computedHash": "8feb857f92b5b31d2fd98c9476e28f7d25d4858a68ca4c22157e10a58e1b4d9b"
+    },
+    "tool-verification": {
+      "source": "PowerPlatformToolBox/pptb-agent-skills",
+      "sourceType": "github",
+      "skillPath": "tool-verification/SKILL.md",
+      "computedHash": "7c803ff3cd3be6a225c3a59d61752d042d9b9bf6e3071f3565fde9b464286cb7"
+    }
+  }
+}
